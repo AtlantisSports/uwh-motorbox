@@ -11,33 +11,11 @@ import numpy as np
 import pickle
 
 # Options
-OAReset = 16  # Should be GPIO number. This is pin 36
-OAOut = 20  # Should be GPIO number. This is pin 38
-zoomIn = 17  # Should be GPIO number. This is pin 11
-zoomOut = 27  # Should be GPIO number. This is pin 13
-zoomTime = 3  # Measured in seconds
-maxaccel = 2.5  # Measured in Hz/s
-maxdecel = 40  # Measured in Hz/s
-minStepperHz = 100.
-maxStepperHz = 4000.
-stepperHzConstant = 10.
-maxStepperSetupHz = 1000.
-stepperSetupHzConstant = 5.
-speedLimitHz = 500  # Stepper speed limit near soft limits
-speedLimitZoneSize = 12800  # Measured in microsteps
+maxaccel = 2.5
+maxdecel = 40
+speedLimit = 500  # Motor speed limit near soft limits
+speedLimitZoneSize = 12800  # Measured in encoder pulses
 slideDir = 1  # Set to 1 or -1 to change direction of slide movement
-reverseSpeed = 500  # Measured in Hz
-reverseTime = 3  # Measured in seconds
-address = 0x11  # The MCU's I2C address
-
-# Convert Stepper limits from Hz to stick values
-maxaccel /= stepperHzConstant
-maxdecel /= stepperHzConstant
-speedLimit = speedLimitHz/stepperHzConstant
-print "maxaccel: " + str(maxaccel)
-print "maxdecel: " + str(maxdecel)
-print "speedLimit: " + str(speedLimit)
-
 
 def stepperCalculator(frequency):
     if frequency != 0:
@@ -49,10 +27,10 @@ def stepperCalculator(frequency):
     return ret
 
 
-def setStepperLimits():
-    print "Entering stepper limit set mode"
+def setSlideLimits():
+    print "Entering slide limit set mode"
     done = False
-    global direction, slideAxis, startBtn, xBtn, yBtn, minStepperHz, maxStepperSetupHz, stepperSetupHzConstant
+    global direction, slideAxis, startBtn, xBtn, yBtn
     global upperStepperLimit, lowerStepperLimit, bus, slideDir
     oldslideaxis = 0.
     limit1 = 0
@@ -87,7 +65,7 @@ def setStepperLimits():
         if yBtn:
             if limit1 == 0:
                 try:
-                    limit1 = getStepperCount()
+                    limit1 = getEncoderCount()
                 except IndexError:
                     print "i2c read failed"
                     limit1 = 0
@@ -95,7 +73,7 @@ def setStepperLimits():
                 print "limit1 set to: " + str(limit1)
             else:  # If the first limit is already set, set the second, save to global variables, and exit
                 try:
-                    limit2 = getStepperCount()
+                    limit2 = getEncoderCount()
                     print "limit2 set to: " + str(limit2)
                     upperStepperLimit = max(limit1, limit2)
                     lowerStepperLimit = min(limit1, limit2)
@@ -217,7 +195,7 @@ def getJSEvents():
     return
 
 
-def getStepperCount():
+def getEncoderCount():
     reply = pi.i2c_read_device(bus, 3)
     count = reply[1][0] * 256 * 256 + reply[1][1] * 256 + reply[1][2]
     # print count
@@ -347,7 +325,7 @@ while not backBtn or not startBtn:
     getJSEvents()
     # Read the current Stepper position from the MCU
     try:
-        stepperCount = getStepperCount()
+        stepperCount = getEncoderCount()
     except IndexError:
         print "i2c read failed"
     # Save the current time
