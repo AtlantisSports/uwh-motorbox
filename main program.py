@@ -18,22 +18,22 @@ speedLimitZoneSize = 12800  # Measured in encoder pulses
 slideDir = 1  # Set to 1 or -1 to change direction of slide movement
 
 # Setup
-d0pin = 7
-d1pin = 11
-d2pin = 13
-d3pin = 15
-d4pin = 19
-d5pin = 21
-d6pin = 23
-d7pin = 29
-clkPin = 31
-rstPin = 22
-oePin = 18
-sel1pin = 12
-sel2pin = 16
-panServoPin = 32
-tiltServoPin = 33
-slidePin = 26
+d0gpio = 4  # This corresponds to pin 7
+d1gpio = 17  # This corresponds to pin 11
+d2gpio = 27  # This corresponds to pin 13
+d3gpio = 22  # This corresponds to pin 15
+d4gpio = 10  # This corresponds to pin 19
+d5gpio = 9  # This corresponds to pin 21
+d6gpio = 11  # This corresponds to pin 23
+d7gpio = 5  # This corresponds to pin 29
+clkGpio = 6  # This corresponds to pin 31
+rstGpio = 25  # This corresponds to pin 22
+oeGpio = 24  # This corresponds to pin 18
+sel1gpio = 18  # This corresponds to pin 12
+sel2gpio = 23  # This corresponds to pin 16
+panServoGpio = 12  # This corresponds to pin 32
+tiltServoGpio = 13  # This corresponds to pin 33
+slideGpio = 7  # This corresponds to pin 26
 
 def stepperCalculator(frequency):
     if frequency != 0:
@@ -221,19 +221,19 @@ def motorControlLoop:
     os.system("sudo pigpiod")
     sleep(2)  # Wait for pigpiod to start
     pi = pigpio.pi()
-    pi.hardware_clock(clkPin, 30000000)
-    pi.set_mode(d0pin, pigpio.INPUT)
-    pi.set_mode(d1pin, pigpio.INPUT)
-    pi.set_mode(d2pin, pigpio.INPUT)
-    pi.set_mode(d3pin, pigpio.INPUT)
-    pi.set_mode(d4pin, pigpio.INPUT)
-    pi.set_mode(d5pin, pigpio.INPUT)
-    pi.set_mode(d6pin, pigpio.INPUT)
-    pi.set_mode(d7pin, pigpio.INPUT)
-    pi.set_mode(rstPin, pigpio.INPUT)
-    pi.set_mode(oePin, pigpio.INPUT)
-    pi.set_mode(sel1pin, pigpio.INPUT)
-    pi.set_mode(sel2pin, pigpio.INPUT)
+    pi.hardware_clock(clkGpio, 30000000)
+    pi.set_mode(d0gpio, pigpio.INPUT)
+    pi.set_mode(d1gpio, pigpio.INPUT)
+    pi.set_mode(d2gpio, pigpio.INPUT)
+    pi.set_mode(d3gpio, pigpio.INPUT)
+    pi.set_mode(d4gpio, pigpio.INPUT)
+    pi.set_mode(d5gpio, pigpio.INPUT)
+    pi.set_mode(d6gpio, pigpio.INPUT)
+    pi.set_mode(d7gpio, pigpio.INPUT)
+    pi.set_mode(rstGpio, pigpio.OUTPUT)
+    pi.set_mode(oeGpio, pigpio.OUTPUT)
+    pi.set_mode(sel1gpio, pigpio.OUTPUT)
+    pi.set_mode(sel2gpio, pigpio.OUTPUT)
 
     # Start xboxdrv
     xboxdrv = subprocess.Popen(shlex.split(
