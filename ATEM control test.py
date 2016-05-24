@@ -226,7 +226,9 @@ if __name__ == '__main__':
     print "sending command"
     a.sendCommand ("CPgI", "\x00\x00\x00\x01"); 
     a.waitForPacket()
+    time.sleep(3)
     a.sendCommand ("CPgI", "\x00\x00\x00\x02"); 
-    a.waitForPacket() 
+    a.waitForPacket()
+    time.sleep(3)
     a.sendCommand ("CPgI", "\x00\x00\x00\x03"); 
-    a.waitForPacket() 
+    a.waitForPacket()
