@@ -212,23 +212,38 @@ class Atem :
 
 if __name__ == '__main__':
     a = Atem()
-    import config
-    a.connectToSwitcher ((config.address,9910))
+    a.connectToSwitcher (('192.168.10.10',9910))
     #while (True):   
     import time
     a.waitForPacket()
     a.waitForPacket()
     a.waitForPacket()
     a.waitForPacket()
-    a.waitForPacket()
-    a.waitForPacket()
-    a.waitForPacket()
     print "sending command"
-    a.sendCommand ("CPgI", "\x00\x00\x00\x01"); 
+    a.sendCommand ("DCut", "\x00\x00\x00\x00"); 
+    a.waitForPacket()
+    time.sleep(1)
+    a.sendCommand ("DCut", "\x00\x00\x00\x00"); 
     a.waitForPacket()
     time.sleep(3)
-    a.sendCommand ("CPgI", "\x00\x00\x00\x02"); 
+    a = Atem()
+    a.connectToSwitcher (('192.168.10.10',9910))
     a.waitForPacket()
-    time.sleep(3)
-    a.sendCommand ("CPgI", "\x00\x00\x00\x03"); 
     a.waitForPacket()
+    a.waitForPacket()
+    a.waitForPacket()
+    a.sendCommand ("DAut", "\x00\x00\x00\x00"); 
+    a.waitForPacket()
+    time.sleep(1)
+    a.sendCommand ("DAut", "\x00\x00\x00\x00"); 
+    time.sleep(20)
+    a = Atem()
+    a.connectToSwitcher (('192.168.10.10',9910))
+    a.waitForPacket()
+    a.waitForPacket()
+    a.waitForPacket()
+    a.waitForPacket()
+    a.sendCommand ("DCut", "\x00\x00\x00\x00"); 
+    a.waitForPacket()
+    time.sleep(1)
+    a.sendCommand ("DCut", "\x00\x00\x00\x00");
