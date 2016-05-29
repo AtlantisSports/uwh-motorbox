@@ -42,7 +42,7 @@ pi.set_mode(sel2gpio, pigpio.OUTPUT)
 pi.write(rstGpio, 1)
 pi.write(oeGpio, 1)
 pi.write(sel1gpio, 0)
-pi.write(sel2gpio, 0)
+pi.write(sel2gpio, 1)
 pi.hardware_clock(clkGpio, 30000000)
 
 done = False
@@ -57,7 +57,83 @@ while not done:
         pi.write(sel1gpio, 0)
         pi.write(sel2gpio, 1)
         pi.write(oeGpio, 0)
-        count += pi.read(d0gpio)*2^32
+        sleep(0.000000035)
+        count += pi.read(d7gpio)
+        count *= 2
+        count += pi.read(d6gpio)
+        count *= 2
+        count += pi.read(d5gpio)
+        count *= 2
+        count += pi.read(d4gpio)
+        count *= 2
+        count += pi.read(d3gpio)
+        count *= 2
+        count += pi.read(d2gpio)
+        count *= 2
+        count += pi.read(d1gpio)
+        count *= 2
+        count += pi.read(d0gpio)
+        count *= 2
+        pi.write(sel1gpio, 1)
+        sleep(0.000000035)
+        count += pi.read(d7gpio)
+        count *= 2
+        count += pi.read(d6gpio)
+        count *= 2
+        count += pi.read(d5gpio)
+        count *= 2
+        count += pi.read(d4gpio)
+        count *= 2
+        count += pi.read(d3gpio)
+        count *= 2
+        count += pi.read(d2gpio)
+        count *= 2
+        count += pi.read(d1gpio)
+        count *= 2
+        count += pi.read(d0gpio)
+        count *= 2
+        pi.write(sel1gpio, 0)
+        pi.write(sel2gpio, 0)
+        sleep(0.000000035)
+        count += pi.read(d7gpio)
+        count *= 2
+        count += pi.read(d6gpio)
+        count *= 2
+        count += pi.read(d5gpio)
+        count *= 2
+        count += pi.read(d4gpio)
+        count *= 2
+        count += pi.read(d3gpio)
+        count *= 2
+        count += pi.read(d2gpio)
+        count *= 2
+        count += pi.read(d1gpio)
+        count *= 2
+        count += pi.read(d0gpio)
+        count *= 2
+        pi.write(sel1gpio, 1)
+        sleep(0.000000035)
+        count += pi.read(d7gpio)
+        count *= 2
+        count += pi.read(d6gpio)
+        count *= 2
+        count += pi.read(d5gpio)
+        count *= 2
+        count += pi.read(d4gpio)
+        count *= 2
+        count += pi.read(d3gpio)
+        count *= 2
+        count += pi.read(d2gpio)
+        count *= 2
+        count += pi.read(d1gpio)
+        count *= 2
+        count += pi.read(d0gpio)
+        count *= 2
+        pi.write(sel1gpio, 0)
+        pi.write(sel2gpio, 1)
+        pi.write(oeGpio, 1)
+        
+        print "Current count is " + str(count)
 
 pi.stop()
 os.system("sudo killall pigpiod")
