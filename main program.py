@@ -55,7 +55,7 @@ def motorControlLoop():
         print "Entering slide limit set mode"
         done = False
         global direction, slideAxis, startBtn, xBtn, yBtn
-        global upperStepperLimit, lowerStepperLimit, bus, slideDir
+        global upperSlideLimit, lowerSlideLimit, bus, slideDir
         oldslideaxis = 0.
         limit1 = 0
         limit2 = 0
@@ -68,22 +68,9 @@ def motorControlLoop():
                     direction = 1
                 else:
                     direction = 0
-            # Send the new stepper frequency if changed
-            if slideAxis != 0:
-                stepperfrequency = max(minStepperHz, min(maxStepperSetupHz, stepperSetupHzConstant * math.fabs(slideAxis)))
-            else:
-                stepperfrequency = 0
+            # Send the new slide speed if changed
             if slideAxis != oldslideaxis:
-                # print "stepperfrequency: " + str(stepperfrequency)
-                tosend = stepperCalculator(stepperfrequency)
-                if direction == 1:
-                    tosend[2] |= 0x80
-                else:
-                    tosend[2] &= 0x7F
-                try:
-                    pi.i2c_write_device(bus, tosend)
-                except pigpio.error:
-                    print "i2c write failed"
+                setSlideSpeed(slideAxis)
             oldslideaxis = slideAxis
             # Set a limit if the Y button is pressed
             if yBtn:
@@ -94,17 +81,17 @@ def motorControlLoop():
                 else:  # If the first limit is already set, set the second, save to global variables, and exit
                     limit2 = getEncoderCount()
                     print "limit2 set to: " + str(limit2)
-                    upperStepperLimit = max(limit1, limit2)
-                    lowerStepperLimit = min(limit1, limit2)
+                    upperSlideLimit = max(limit1, limit2)
+                    lowerSlideLimit = min(limit1, limit2)
                     yBtn = False
                     done = True
             if startBtn and xBtn:
-                print "Switching stepper direction"
+                print "Switching slide direction"
                 slideDir *= -1
                 startBtn = 0
                 xBtn = 0
             sleep(0.01)
-        print "Exiting stepper limit set mode"
+        print "Exiting slide limit set mode"
         return
 
 
@@ -114,8 +101,10 @@ def motorControlLoop():
         limit1 = 0
         limit2 = 0
         limit3 = 0
-        panpos = 1500
-        tiltpos = 1500
+        panpos = 1500.
+        tiltpos = 1500.
+        setPanPos(panpos)
+        setTiltPos(tiltpos)
         done = False
         while not done:
             # Get events from evdev
@@ -143,18 +132,10 @@ def motorControlLoop():
                     done = True
             if panAxis != 0:
                 panpos -= (1.5 * 10 ** (-8)) * (panAxis * math.fabs(panAxis))
-                modvalue = int(panpos * 2)
-                try:
-                    pi.i2c_write_device(bus, [0x01, (modvalue & 0xFF00) >> 8, modvalue & 0xFF])
-                except pigpio.error:
-                    print "i2c write failed"
+                setPanPos(panpos)
             if tiltAxis != 0:
                 tiltpos += (0.9 * 10 ** (-8)) * (tiltAxis * math.fabs(tiltAxis))
-                modvalue = int(tiltpos * 2)
-                try:
-                    pi.i2c_write_device(bus, [0x03, (modvalue & 0xFF00) >> 8, modvalue & 0xFF])
-                except pigpio.error:
-                    print "i2c write failed"
+                setTiltPos(tiltpos)
         print "Center coordinates: " + str(pancenter) + "," + str(tiltcenter)
         print "Radius: " + str(radius)
         print "tiltmin: " + str(tiltmin)
@@ -213,15 +194,107 @@ def motorControlLoop():
 
     def setSlideSpeed(speed):
         global pi
-        dutycycle = min(1000, max(500, 750 + speed))
+        dutycycle = min(9500, max(9000, 9250 + speed))
         pi.set_PWM_dutycycle(slideGpio, dutycycle)
+        return
+
+
+    def setPanPos(position):
+        global pi
+        dutycycle = min(125000, max(25000, int(position * 50)))
+        pi.hardware_PWM(panServoGpio, 50, dutycycle)
+        return
+        
+        
+    def setTiltPos(position):
+        global pi
+        dutycycle = min(125000, max(25000, int(position * 50)))
+        pi.hardware_PWM(tiltServoGpio, 50, dutycycle)
         return
 
 
     def getEncoderCount():
         global pi
-        pi.set
-        # print count
+        count = 0
+        pi.write(sel1gpio, 0)
+        pi.write(sel2gpio, 1)
+        pi.write(oeGpio, 0)
+        sleep(0.000000035)
+        count -= pi.read(d7gpio)
+        count *= 2
+        count += pi.read(d6gpio)
+        count *= 2
+        count += pi.read(d5gpio)
+        count *= 2
+        count += pi.read(d4gpio)
+        count *= 2
+        count += pi.read(d3gpio)
+        count *= 2
+        count += pi.read(d2gpio)
+        count *= 2
+        count += pi.read(d1gpio)
+        count *= 2
+        count += pi.read(d0gpio)
+        count *= 2
+        pi.write(sel1gpio, 1)
+        sleep(0.000000035)
+        count += pi.read(d7gpio)
+        count *= 2
+        count += pi.read(d6gpio)
+        count *= 2
+        count += pi.read(d5gpio)
+        count *= 2
+        count += pi.read(d4gpio)
+        count *= 2
+        count += pi.read(d3gpio)
+        count *= 2
+        count += pi.read(d2gpio)
+        count *= 2
+        count += pi.read(d1gpio)
+        count *= 2
+        count += pi.read(d0gpio)
+        count *= 2
+        pi.write(sel1gpio, 0)
+        pi.write(sel2gpio, 0)
+        sleep(0.000000035)
+        count += pi.read(d7gpio)
+        count *= 2
+        count += pi.read(d6gpio)
+        count *= 2
+        count += pi.read(d5gpio)
+        count *= 2
+        count += pi.read(d4gpio)
+        count *= 2
+        count += pi.read(d3gpio)
+        count *= 2
+        count += pi.read(d2gpio)
+        count *= 2
+        count += pi.read(d1gpio)
+        count *= 2
+        count += pi.read(d0gpio)
+        count *= 2
+        pi.write(sel1gpio, 1)
+        sleep(0.000000035)
+        count += pi.read(d7gpio)
+        count *= 2
+        count += pi.read(d6gpio)
+        count *= 2
+        count += pi.read(d5gpio)
+        count *= 2
+        count += pi.read(d4gpio)
+        count *= 2
+        count += pi.read(d3gpio)
+        count *= 2
+        count += pi.read(d2gpio)
+        count *= 2
+        count += pi.read(d1gpio)
+        count *= 2
+        count += pi.read(d0gpio)
+        pi.write(sel1gpio, 0)
+        pi.write(sel2gpio, 1)
+        pi.write(oeGpio, 1)
+        
+        #print "Current count is " + str(count)
         return count
 
     # Start pigpio
@@ -248,6 +321,10 @@ def motorControlLoop():
     pi.set_mode(oeGpio, pigpio.OUTPUT)
     pi.set_mode(sel1gpio, pigpio.OUTPUT)
     pi.set_mode(sel2gpio, pigpio.OUTPUT)
+    pi.write(rstGpio, 1)
+    pi.write(oeGpio, 1)
+    pi.write(sel1gpio, 0)
+    pi.write(sel2gpio, 1)
     pi.hardware_clock(clkGpio, 30000000)
     pi.hardware_PWM(panServoGpio, 50, 75000)
     pi.hardware_PWM(tiltServoGpio, 50, 75000)
@@ -278,10 +355,10 @@ def motorControlLoop():
         tiltmin = inputdata[3]
     # If file cannot be found, set servo limits
     except IOError:
-        pancenter = 0
-        tiltcenter = 0
-        radius = 0
-        tiltmin = 0
+        pancenter = 0.
+        tiltcenter = 0.
+        radius = 0.
+        tiltmin = 0.
         print "ServoLimitData.pkl does not exist, entering servo limit setup mode"
         setServoLimits()
 
@@ -292,32 +369,22 @@ def motorControlLoop():
     bBtn = False
     xBtn = False
     yBtn = False
-    zoomInStartTime = 0
-    zoomOutStartTime = 0
     panAxis = 0.
     tiltAxis = 0.
     slideAxis = 0.
-    stepperSpeed = 0.
-    oldStepperSpeed = stepperSpeed
-    pan = 1500
-    tilt = 1500
+    slideSpeed = 0.
+    oldSlideSpeed = slideSpeed
+    pan = 1500.
+    tilt = 1500.
     oldpan = pan
     oldtilt = tilt
-    stepperCount = 0
-    upperStepperLimit = 0
-    lowerStepperLimit = 0
-    stepperFrequency = 0.
-    toSend = [0,0,0]
-    oldToSend = toSend
+    encoderCount = 0
+    upperSlideLimit = 0
+    lowerSlideLimit = 0
     direction = 0
-    olddir = 0.
-    dir0hstop = False
-    dir1hstop = False
     # curTime = 0
-    stopTime = 0.
-    OAResetComplete = True
     
-    # Set the stepper limits before normal operation
+    # Set the slide limits before normal operation
     setSlideLimits()
 
     print "Entering Motor Control Loop"
@@ -327,13 +394,8 @@ def motorControlLoop():
         # print str(curTime - time.time())
     # Get events from evdev
         getJSEvents()
-    # Read the current Stepper position from the MCU
-        try:
-            stepperCount = getEncoderCount()
-        except IndexError:
-            print "i2c read failed"
-    # Save the current time
-        curTime = time.time()
+    # Read the current encoder position from the MCU
+        encoderCount = getEncoderCount()
     # Respond to button presses
         if startBtn and xBtn:
             startBtn = False
@@ -343,60 +405,53 @@ def motorControlLoop():
             startBtn = False
             bBtn = False
             setServoLimits()
-    # Limit stepperSpeed change
-        if math.fabs(slideAxis) > math.fabs(oldStepperSpeed):
-            if math.fabs(slideAxis - oldStepperSpeed) > maxaccel:
-                if slideAxis > oldStepperSpeed:
-                    stepperSpeed = oldStepperSpeed + maxaccel
+    # Limit slideSpeed change
+        if math.fabs(slideAxis) > math.fabs(oldSlideSpeed):
+            if math.fabs(slideAxis - oldSlideSpeed) > maxaccel:
+                if slideAxis > oldSlideSpeed:
+                    slideSpeed = oldSlideSpeed + maxaccel
                 else:
-                    stepperSpeed = oldStepperSpeed - maxaccel
+                    slideSpeed = oldSlideSpeed - maxaccel
             else:
-                    stepperSpeed = slideAxis
+                    slideSpeed = slideAxis
         else:
-            if math.fabs(slideAxis - oldStepperSpeed) > maxdecel:
-                if slideAxis > oldStepperSpeed:
-                    stepperSpeed = oldStepperSpeed + maxdecel
+            if math.fabs(slideAxis - oldSlideSpeed) > maxdecel:
+                if slideAxis > oldSlideSpeed:
+                    slideSpeed = oldSlideSpeed + maxdecel
                 else:
-                    stepperSpeed = oldStepperSpeed - maxdecel
+                    slideSpeed = oldSlideSpeed - maxdecel
             else:
-                stepperSpeed = slideAxis
-        # print "After acceleration/deceleration limit: " + str(stepperSpeed)
+                slideSpeed = slideAxis
+        # print "After acceleration/deceleration limit: " + str(slideSpeed)
     # Calculate direction
-        if stepperSpeed != 0:
-            if stepperSpeed > 0:
+        if slideSpeed != 0:
+            if slideSpeed > 0:
                 direction = 1
             else:
                 direction = 0
-    # Limit stepperSpeed to speedLimit near soft stops and to 0 when across soft stops, but respect deceleration limit
-        if direction == 0 and stepperCount > (upperStepperLimit - speedLimitZoneSize):
-            if stepperCount > upperStepperLimit:
-                if stepperSpeed >= -maxdecel:  # Beacuse direction is 0, stepperSpeed must be <0
-                    stepperSpeed = 0
+    # Limit slideSpeed to speedLimit near soft stops and to 0 when across soft stops, but respect deceleration limit
+        if direction == 0 and encoderCount > (upperSlideLimit - speedLimitZoneSize):
+            if encoderCount > upperSlideLimit:
+                if slideSpeed >= -maxdecel:  # Beacuse direction is 0, slideSpeed must be <0
+                    slideSpeed = 0
                 else:
-                    stepperSpeed += maxdecel
-            elif stepperSpeed < -speedLimit:  # Beacuse direction is 0, stepperSpeed must be <0
-                if stepperSpeed >= -speedLimit - maxdecel:
-                    stepperSpeed = -speedLimit
+                    slideSpeed += maxdecel
+            elif slideSpeed < -speedLimit:  # Beacuse direction is 0, slideSpeed must be <0
+                if slideSpeed >= -speedLimit - maxdecel:
+                    slideSpeed = -speedLimit
                 else:
-                    stepperSpeed += maxdecel
-        if direction == 1 and stepperCount < (lowerStepperLimit + speedLimitZoneSize):
-            if stepperCount < lowerStepperLimit:
-                if stepperSpeed <= maxdecel:  # Beacuse direction is 1, stepperSpeed must be >0
-                    stepperSpeed = 0
+                    slideSpeed += maxdecel
+        if direction == 1 and encoderCount < (lowerSlideLimit + speedLimitZoneSize):
+            if encoderCount < lowerSlideLimit:
+                if slideSpeed <= maxdecel:  # Beacuse direction is 1, slideSpeed must be >0
+                    slideSpeed = 0
                 else:
-                    stepperSpeed -= maxdecel
-            elif stepperSpeed > speedLimit:  # Beacuse direction is 1, stepperSpeed must be >0
-                if stepperSpeed <= speedLimit + maxdecel:
-                    stepperSpeed = speedLimit
+                    slideSpeed -= maxdecel
+            elif slideSpeed > speedLimit:  # Beacuse direction is 1, slideSpeed must be >0
+                if slideSpeed <= speedLimit + maxdecel:
+                    slideSpeed = speedLimit
                 else:
-                    stepperSpeed -= maxdecel
-    # Calculate the frequency to send to the stepper
-        # print "Limits Applied: " + str(stepperSpeed)
-        if stepperSpeed != 0:
-            stepperFrequency = max(minStepperHz, min(maxStepperHz, stepperHzConstant * math.fabs(stepperSpeed)))
-        else:
-            stepperFrequency = 0
-        oldStepperSpeed = stepperSpeed
+                    slideSpeed -= maxdecel
     # Calculate new servo values
         pan -= (1.5 * 10 ** (-9)) * (panAxis * math.fabs(panAxis))
         tilt += (0.9 * 10 ** (-9)) * (tiltAxis * math.fabs(tiltAxis))
@@ -410,14 +465,15 @@ def motorControlLoop():
             pan = pancenter + vector[0]
             tilt = tiltcenter + vector[1]
     # Send frequency of stepper pulses if changed
-
+        if slideSpeed != oldSlideSpeed:
+            setSlideSpeed(slideSpeed)
     # Send pan value if changed
         if pan != oldpan:
-            
+            setPanPos(pan)
         oldpan = pan
     # Send tilt value if changed
         if tilt != oldtilt:
-
+            setTiltPos(tilt)
         oldtilt = tilt
         sleep(.01)
 
@@ -651,3 +707,6 @@ def ATEMControlLoop(ATEMAddress):
         a.waitForPacket()
         a.waitForPacket()
         a.sendCommand (command, data); 
+
+
+motorControlLoop()
