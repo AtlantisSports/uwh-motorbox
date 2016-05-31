@@ -58,7 +58,7 @@ while not done:
         pi.write(sel2gpio, 1)
         pi.write(oeGpio, 0)
         sleep(0.000000035)
-        count += pi.read(d7gpio)
+        count -= pi.read(d7gpio)
         count *= 2
         count += pi.read(d6gpio)
         count *= 2
@@ -128,7 +128,6 @@ while not done:
         count += pi.read(d1gpio)
         count *= 2
         count += pi.read(d0gpio)
-        count *= 2
         pi.write(sel1gpio, 0)
         pi.write(sel2gpio, 1)
         pi.write(oeGpio, 1)
