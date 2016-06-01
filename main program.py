@@ -1,4 +1,4 @@
-import multiprocessing
+from multiprocessing import Process
 
 
 ATEMAddress = '192.168.10.10'
@@ -21,7 +21,6 @@ def motorControlLoop():
     maxdecel = 40
     speedLimit = 500  # Motor speed limit near soft limits
     speedLimitZoneSize = 12800  # Measured in encoder pulses
-    slideDir = 1  # Set to 1 or -1 to change direction of slide movement
 
     # Setup
     d0gpio = 4  # This corresponds to pin 7
@@ -41,101 +40,83 @@ def motorControlLoop():
     tiltServoGpio = 13  # This corresponds to pin 33
     slideGpio = 7  # This corresponds to pin 26
 
-    def stepperCalculator(frequency):
-        if frequency != 0:
-            PS = math.ceil(math.log((3921.56867 / frequency), 2))
-            modulo = 1000000 / (frequency * (2 ** PS))
-            ret = [0x00, int(modulo), int(PS)]
-        else:
-            ret = [0, 0, 0]
-        return ret
 
-
-    def setSlideLimits():
+    def setSlideLimits(pi, JS, JSstatus):
         print "Entering slide limit set mode"
         done = False
-        global direction, slideAxis, startBtn, xBtn, yBtn
-        global upperSlideLimit, lowerSlideLimit, bus, slideDir
-        oldslideaxis = 0.
+        oldslideAxis = 0.
         limit1 = 0
         limit2 = 0
         while not done:
             # Get events from evdev
-            getJSEvents()
-            # Calculate direction
-            if slideAxis != 0:
-                if slideAxis > 0:
-                    direction = 1
-                else:
-                    direction = 0
+            JSstatus = getJSEvents(JS, JSstatus)
             # Send the new slide speed if changed
-            if slideAxis != oldslideaxis:
-                setSlideSpeed(slideAxis)
-            oldslideaxis = slideAxis
+            if JSstatus['slideAxis'] != oldslideAxis:
+                setSlideSpeed(pi, JSstatus['slideAxis'])
+            oldslideAxis = JSstatus['slideAxis']
             # Set a limit if the Y button is pressed
-            if yBtn:
+            if JSstatus['yBtn']:
                 if limit1 == 0:
-                    limit1 = getEncoderCount()
-                    yBtn = False
+                    limit1 = getEncoderCount(pi)
+                    JSstatus['yBtn'] = False
                     print "limit1 set to: " + str(limit1)
                 else:  # If the first limit is already set, set the second, save to global variables, and exit
-                    limit2 = getEncoderCount()
+                    limit2 = getEncoderCount(pi)
                     print "limit2 set to: " + str(limit2)
                     upperSlideLimit = max(limit1, limit2)
                     lowerSlideLimit = min(limit1, limit2)
-                    yBtn = False
+                    JSstatus['yBtn'] = False
                     done = True
-            if startBtn and xBtn:
+            if JSstatus['startBtn'] and JSstatus['xBtn']:
                 print "Switching slide direction"
-                slideDir *= -1
-                startBtn = 0
-                xBtn = 0
+                JSstatus['slideDir'] *= -1
+                JSstatus['startBtn'] = False
+                JSstatus['xBtn'] = False
             sleep(0.01)
         print "Exiting slide limit set mode"
-        return
+        return JSstatus, upperSlideLimit, lowerSlideLimit
 
 
-    def setServoLimits():
+    def setServoLimits(pi, JS, JSstatus):
         print "Entering servo limit set mode"
-        global panAxis, tiltAxis, yBtn, tiltmin, pancenter, tiltcenter, radius
         limit1 = 0
         limit2 = 0
         limit3 = 0
         panpos = 1500.
         tiltpos = 1500.
-        setPanPos(panpos)
-        setTiltPos(tiltpos)
+        setPanPos(pi, panpos)
+        setTiltPos(pi, tiltpos)
         done = False
         while not done:
             # Get events from evdev
-            getJSEvents()
-            if yBtn:
+            JSstatus = getJSEvents(JS, JSstatus)
+            if JSstatus['yBtn']:
                 if limit1 == 0:
                     limit1 = [panpos, tiltpos]
                     print "limit1 set to " + str(limit1)
-                    yBtn = False
+                    JSstatus['yBtn'] = False
                 elif limit2 == 0:
                     limit2 = [panpos, tiltpos]
                     print "limit2 set to " + str(limit2)
-                    yBtn = False
+                    JSstatus['yBtn'] = False
                 elif limit3 == 0:
                     limit3 = [panpos, tiltpos]
                     print "limit3 set to " + str(limit3)
-                    yBtn = False
+                    JSstatus['yBtn'] = False
                 else:
                     tiltmin = tiltpos
                     d = 2 * (limit1[0] * (limit2[1] - limit3[1]) + limit2[0] * (limit3[1] - limit1[1]) + limit3[0] * (limit1[1] - limit2[1]))
                     pancenter = ((limit1[0] ** 2 + limit1[1] ** 2) * (limit2[1] - limit3[1]) + (limit2[0] ** 2 + limit2[1] ** 2) * (limit3[1] - limit1[1]) + (limit3[0] ** 2 + limit3[1] ** 2) * (limit1[1] - limit2[1])) / d
                     tiltcenter = ((limit1[0] ** 2 + limit1[1] ** 2) * (limit3[0] - limit2[0]) + (limit2[0] ** 2 + limit2[1] ** 2) * (limit1[0] - limit3[0]) + (limit3[0] ** 2 + limit3[1] ** 2) * (limit2[0] - limit1[0])) / d
                     radius = math.sqrt((limit1[0] - pancenter)**2 + (limit1[1] - tiltcenter)**2)
-                    yBtn = False
+                    JSstatus['yBtn'] = False
                     done = True
-            if panAxis != 0:
-                panpos -= (1.5 * 10 ** (-8)) * (panAxis * math.fabs(panAxis))
-                setPanPos(panpos)
-            if tiltAxis != 0:
-                tiltpos += (0.9 * 10 ** (-8)) * (tiltAxis * math.fabs(tiltAxis))
-                setTiltPos(tiltpos)
+            if JSstatus['panAxis'] != 0:
+                panpos -= (1.5 * 10 ** (-8)) * (JSstatus['panAxis'] * math.fabs(JSstatus['panAxis']))
+                setPanPos(pi, panpos)
+            if JSstatus['tiltAxis'] != 0:
+                tiltpos += (0.9 * 10 ** (-8)) * (JSstatus['tiltAxis'] * math.fabs(JSstatus['tiltAxis']))
+                setTiltPos(pi, tiltpos)
         print "Center coordinates: " + str(pancenter) + "," + str(tiltcenter)
         print "Radius: " + str(radius)
         print "tiltmin: " + str(tiltmin)
@@ -144,77 +125,72 @@ def motorControlLoop():
         pickle.dump(datatosave, output)
         output.close()
         print "Exiting servo limit set mode"
-        return
+        return JSstatus, pancenter, tiltcenter, radius, tiltmin
 
 
-    def getJSEvents():
-        global panAxis, tiltAxis, slideAxis, backBtn, startBtn, aBtn, bBtn, xBtn, yBtn, JS
+    def getJSEvents(JS, JSstatus):
         JSevents = JS.read()
         try:
             for event in JSevents:
                 if event.type == ecodes.EV_ABS:
                     if event.code == ecodes.ABS_X:
-                        panAxis = event.value
+                        JSstatus['panAxis'] = event.value
                     elif event.code == ecodes.ABS_Y:
-                        tiltAxis = event.value
+                        JSstatus['tiltAxis'] = event.value
                     elif event.code == ecodes.ABS_Z:
-                        slideAxis = event.value * slideDir
+                        JSstatus['slideAxis'] = event.value * JSstatus['slideDir']
                 elif event.type == ecodes.EV_KEY:
                     if event.value == True:
                         if event.code == ecodes.BTN_SELECT:
-                            backBtn = True
+                            JSstatus['backBtn'] = True
                         elif event.code == ecodes.BTN_START:
-                            startBtn = True
+                            JSstatus['startBtn'] = True
                         elif event.code == ecodes.BTN_A:
-                            aBtn = True
+                            JSstatus['aBtn'] = True
                         elif event.code == ecodes.BTN_B:
-                            bBtn = True
+                            JSstatus['bBtn'] = True
                         elif event.code == ecodes.BTN_X:
-                            xBtn = True
+                            JSstatus['xBtn'] = True
                         elif event.code == ecodes.BTN_Y:
-                            yBtn = True
+                            JSstatus['yBtn'] = True
                     elif event.value == False:
                         if event.code == ecodes.BTN_SELECT:
-                            backBtn = False
+                            JSstatus['backBtn'] = False
                         elif event.code == ecodes.BTN_START:
-                            startBtn = False
+                            JSstatus['startBtn'] = False
                         elif event.code == ecodes.BTN_A:
-                            aBtn = False
+                            JSstatus['aBtn'] = False
                         elif event.code == ecodes.BTN_B:
-                            bBtn = False
+                            JSstatus['bBtn'] = False
                         elif event.code == ecodes.BTN_X:
-                            xBtn = False
+                            JSstatus['xBtn'] = False
                         elif event.code == ecodes.BTN_Y:
-                            yBtn = False
+                            JSstatus['yBtn'] = False
         except IOError:
             pass
 
-        return
+        return JSstatus
 
 
-    def setSlideSpeed(speed):
-        global pi
+    def setSlideSpeed(pi, speed):
         dutycycle = min(9500, max(9000, 9250 + speed))
         pi.set_PWM_dutycycle(slideGpio, dutycycle)
         return
 
 
-    def setPanPos(position):
-        global pi
+    def setPanPos(pi, position):
         dutycycle = min(125000, max(25000, int(position * 50)))
         pi.hardware_PWM(panServoGpio, 50, dutycycle)
         return
         
         
-    def setTiltPos(position):
-        global pi
+    def setTiltPos(pi, position):
         dutycycle = min(125000, max(25000, int(position * 50)))
         pi.hardware_PWM(tiltServoGpio, 50, dutycycle)
         return
 
 
-    def getEncoderCount():
-        global pi
+    def getEncoderCount(pi):
         count = 0
         pi.write(sel1gpio, 0)
         pi.write(sel2gpio, 1)
@@ -321,6 +297,8 @@ def motorControlLoop():
     pi.set_mode(oeGpio, pigpio.OUTPUT)
     pi.set_mode(sel1gpio, pigpio.OUTPUT)
     pi.set_mode(sel2gpio, pigpio.OUTPUT)
+    pi.write(rstGpio, 0)
+    sleep(000000035)
     pi.write(rstGpio, 1)
     pi.write(oeGpio, 1)
     pi.write(sel1gpio, 0)
@@ -335,6 +313,7 @@ def motorControlLoop():
     # Start xboxdrv
     xboxdrv = subprocess.Popen(shlex.split(
             "sudo xboxdrv --detach-kernel-driver -s --deadzone 15% --trigger-as-zaxis --deadzone-trigger 15% -l 2"))
+    sleep(3)
 
     # Initiate joystick device
     devices = [InputDevice(fn) for fn in list_devices()]
@@ -344,6 +323,18 @@ def motorControlLoop():
             break
     JS.grab()
 
+    # Set variables
+    JSstatus = dict(backBtn = False, startBtn = False, aBtn = False, bBtn = False, xBtn = False, yBtn = False, panAxis = 0., tiltAxis = 0., slideAxis = 0., slideDir = 1)
+    slideSpeed = 0.
+    oldSlideSpeed = slideSpeed
+    pan = 1500.
+    tilt = 1500.
+    oldpan = pan
+    oldtilt = tilt
+    encoderCount = 0
+    direction = 0
+    # curTime = 0
+    
     # Read servo limit info from file
     try:
         pklfile = open('ServoLimitData.pkl', 'r')
@@ -355,73 +346,47 @@ def motorControlLoop():
         tiltmin = inputdata[3]
     # If file cannot be found, set servo limits
     except IOError:
-        pancenter = 0.
-        tiltcenter = 0.
-        radius = 0.
-        tiltmin = 0.
         print "ServoLimitData.pkl does not exist, entering servo limit setup mode"
-        setServoLimits()
+        JSstatus, pancenter, tiltcenter, radius, tiltmin = setServoLimits(pi, JS, JSstatus)
 
-    # Set variables
-    backBtn = False
-    startBtn = False
-    aBtn = False
-    bBtn = False
-    xBtn = False
-    yBtn = False
-    panAxis = 0.
-    tiltAxis = 0.
-    slideAxis = 0.
-    slideSpeed = 0.
-    oldSlideSpeed = slideSpeed
-    pan = 1500.
-    tilt = 1500.
-    oldpan = pan
-    oldtilt = tilt
-    encoderCount = 0
-    upperSlideLimit = 0
-    lowerSlideLimit = 0
-    direction = 0
-    # curTime = 0
-    
     # Set the slide limits before normal operation
-    setSlideLimits()
+    JSstatus, upperSlideLimit, lowerSlideLimit = setSlideLimits(pi, JS, JSstatus)
 
     print "Entering Motor Control Loop"
 
     # -----------Main Program Loop-------------
-    while not backBtn or not startBtn:
+    while not JSstatus['backBtn'] or not JSstatus['startBtn']:
         # print str(curTime - time.time())
     # Get events from evdev
-        getJSEvents()
+        JSstatus = getJSEvents(JS, JSstatus)
     # Read the current encoder position from the MCU
-        encoderCount = getEncoderCount()
+        encoderCount = getEncoderCount(pi)
     # Respond to button presses
-        if startBtn and xBtn:
-            startBtn = False
-            xBtn = False
-            setSlideLimits()
-        elif startBtn and bBtn:
-            startBtn = False
-            bBtn = False
-            setServoLimits()
+        if JSstatus['startBtn'] and JSstatus['xBtn']:
+            JSstatus['startBtn'] = False
+            JSstatus['xBtn'] = False
+            JSstatus, upperSlideLimit, lowerSlideLimit = setSlideLimits(pi, JS, JSstatus)
+        elif JSstatus['startBtn'] and JSstatus['bBtn']:
+            JSstatus['startBtn'] = False
+            JSstatus['bBtn'] = False
+            JSstatus, pancenter, tiltcenter, radius, tiltmin = setServoLimits(pi, JS, JSstatus)
     # Limit slideSpeed change
-        if math.fabs(slideAxis) > math.fabs(oldSlideSpeed):
-            if math.fabs(slideAxis - oldSlideSpeed) > maxaccel:
-                if slideAxis > oldSlideSpeed:
+        if math.fabs(JSstatus['slideAxis']) > math.fabs(oldSlideSpeed):
+            if math.fabs(JSstatus['slideAxis'] - oldSlideSpeed) > maxaccel:
+                if JSstatus['slideAxis'] > oldSlideSpeed:
                     slideSpeed = oldSlideSpeed + maxaccel
                 else:
                     slideSpeed = oldSlideSpeed - maxaccel
             else:
-                    slideSpeed = slideAxis
+                    slideSpeed = JSstatus['slideAxis']
         else:
-            if math.fabs(slideAxis - oldSlideSpeed) > maxdecel:
-                if slideAxis > oldSlideSpeed:
+            if math.fabs(JSstatus['slideAxis'] - oldSlideSpeed) > maxdecel:
+                if JSstatus['slideAxis'] > oldSlideSpeed:
                     slideSpeed = oldSlideSpeed + maxdecel
                 else:
                     slideSpeed = oldSlideSpeed - maxdecel
             else:
-                slideSpeed = slideAxis
+                slideSpeed = JSstatus['slideAxis']
         # print "After acceleration/deceleration limit: " + str(slideSpeed)
     # Calculate direction
         if slideSpeed != 0:
@@ -453,8 +418,8 @@ def motorControlLoop():
                 else:
                     slideSpeed -= maxdecel
     # Calculate new servo values
-        pan -= (1.5 * 10 ** (-9)) * (panAxis * math.fabs(panAxis))
-        tilt += (0.9 * 10 ** (-9)) * (tiltAxis * math.fabs(tiltAxis))
+        pan -= (1.5 * 10 ** (-9)) * (JSstatus['panAxis'] * math.fabs(JSstatus['panAxis']))
+        tilt += (0.9 * 10 ** (-9)) * (JSstatus['tiltAxis'] * math.fabs(JSstatus['tiltAxis']))
     # Limit servos to vertical max and within circle
         if tilt < tiltmin:
             tilt = tiltmin
@@ -466,14 +431,14 @@ def motorControlLoop():
             tilt = tiltcenter + vector[1]
     # Send frequency of stepper pulses if changed
         if slideSpeed != oldSlideSpeed:
-            setSlideSpeed(slideSpeed)
+            setSlideSpeed(pi, slideSpeed)
     # Send pan value if changed
         if pan != oldpan:
-            setPanPos(pan)
+            setPanPos(pi, pan)
         oldpan = pan
     # Send tilt value if changed
         if tilt != oldtilt:
-            setTiltPos(tilt)
+            setTiltPos(pi, tilt)
         oldtilt = tilt
         sleep(.01)
 
@@ -709,4 +674,5 @@ def ATEMControlLoop(ATEMAddress):
         a.sendCommand (command, data); 
 
 
-motorControlLoop()
+motorProcess = Process(target=motorControlLoop, args=())
+motorProcess.start()
