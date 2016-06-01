@@ -16,6 +16,8 @@ def motorControlLoop():
     import numpy as np
     import pickle
 
+    print "Motor Control Loop imports complete"
+
     # Options
     maxaccel = 2.5
     maxdecel = 40
@@ -174,6 +176,7 @@ def motorControlLoop():
 
     def setSlideSpeed(pi, speed):
         dutycycle = min(9500, max(9000, 9250 + speed))
+        #print "Setting slide dutycycle to " + str(dutycycle)
         pi.set_PWM_dutycycle(slideGpio, dutycycle)
         return
 
@@ -275,6 +278,7 @@ def motorControlLoop():
 
     # Start pigpio
     os.system("sudo pigpiod")
+    print "pigpiod started"
     sleep(2)  # Wait for pigpiod to start
     pi = pigpio.pi()
     pi.set_mode(d0gpio, pigpio.INPUT)
@@ -298,7 +302,7 @@ def motorControlLoop():
     pi.set_mode(sel1gpio, pigpio.OUTPUT)
     pi.set_mode(sel2gpio, pigpio.OUTPUT)
     pi.write(rstGpio, 0)
-    sleep(000000035)
+    sleep(0.000000035)
     pi.write(rstGpio, 1)
     pi.write(oeGpio, 1)
     pi.write(sel1gpio, 0)
@@ -313,7 +317,8 @@ def motorControlLoop():
     # Start xboxdrv
     xboxdrv = subprocess.Popen(shlex.split(
             "sudo xboxdrv --detach-kernel-driver -s --deadzone 15% --trigger-as-zaxis --deadzone-trigger 15% -l 2"))
-    sleep(3)
+    print "xboxdrv started"
+    sleep(5)
 
     # Initiate joystick device
     devices = [InputDevice(fn) for fn in list_devices()]
@@ -387,7 +392,7 @@ def motorControlLoop():
                     slideSpeed = oldSlideSpeed - maxdecel
             else:
                 slideSpeed = JSstatus['slideAxis']
-        # print "After acceleration/deceleration limit: " + str(slideSpeed)
+        #print "After acceleration/deceleration limit: " + str(slideSpeed)
     # Calculate direction
         if slideSpeed != 0:
             if slideSpeed > 0:
@@ -432,6 +437,7 @@ def motorControlLoop():
     # Send frequency of stepper pulses if changed
         if slideSpeed != oldSlideSpeed:
             setSlideSpeed(pi, slideSpeed)
+        oldSlideSpeed = slideSpeed
     # Send pan value if changed
         if pan != oldpan:
             setPanPos(pi, pan)
@@ -449,6 +455,7 @@ def motorControlLoop():
     print "xboxdrv terminated"
     pi.stop()
     os.system("sudo killall pigpiod")
+    print "Motor control loop end reached"
     #os.system("shutdown -h now")
 
 
@@ -676,3 +683,4 @@ def ATEMControlLoop(ATEMAddress):
 
 motorProcess = Process(target=motorControlLoop, args=())
 motorProcess.start()
+print "motorControlLoop started"

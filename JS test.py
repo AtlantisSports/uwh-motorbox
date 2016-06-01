@@ -1,5 +1,12 @@
 from evdev import InputDevice, categorize, ecodes, list_devices
 from time import sleep
+import subprocess
+import shlex
+
+xboxdrv = subprocess.Popen(shlex.split(
+            "sudo xboxdrv --detach-kernel-driver -s --deadzone 15% --trigger-as-zaxis --deadzone-trigger 15% -l 2"))
+print "xboxdrv started"
+sleep(5)
 
 devices = [InputDevice(fn) for fn in list_devices()]
 for dev in devices:
