@@ -1,9 +1,9 @@
-from multiprocessing import Process
+from multiprocessing import Process, Pipe
 
 
 ATEMAddress = '192.168.10.10'
 
-def motorControlLoop():
+def motorControlLoop(pipe):
     from evdev import InputDevice, categorize, ecodes, list_devices
     from time import sleep
     import time
@@ -20,9 +20,9 @@ def motorControlLoop():
 
     # Options
     maxaccel = 2.5
-    maxdecel = 40
-    speedLimit = 500  # Motor speed limit near soft limits
-    speedLimitZoneSize = 12800  # Measured in encoder pulses
+    maxdecel = 1.5
+    speedLimit = 50  # Motor speed limit near soft limits
+    speedLimitZoneSize = 25000  # Measured in encoder pulses
 
     # Setup
     d0gpio = 4  # This corresponds to pin 7
@@ -54,6 +54,7 @@ def motorControlLoop():
             JSstatus = getJSEvents(JS, JSstatus)
             # Send the new slide speed if changed
             if JSstatus['slideAxis'] != oldslideAxis:
+                #print 'slideAxis: ' + str(JSstatus['slideAxis'])
                 setSlideSpeed(pi, JSstatus['slideAxis'])
             oldslideAxis = JSstatus['slideAxis']
             # Set a limit if the Y button is pressed
@@ -114,11 +115,12 @@ def motorControlLoop():
                     JSstatus['yBtn'] = False
                     done = True
             if JSstatus['panAxis'] != 0:
-                panpos -= (1.5 * 10 ** (-8)) * (JSstatus['panAxis'] * math.fabs(JSstatus['panAxis']))
+                panpos -= (7.5 * 10 ** (-9)) * (JSstatus['panAxis'] * math.fabs(JSstatus['panAxis']))
                 setPanPos(pi, panpos)
             if JSstatus['tiltAxis'] != 0:
-                tiltpos += (0.9 * 10 ** (-8)) * (JSstatus['tiltAxis'] * math.fabs(JSstatus['tiltAxis']))
+                tiltpos += (4.5 * 10 ** (-9)) * (JSstatus['tiltAxis'] * math.fabs(JSstatus['tiltAxis']))
                 setTiltPos(pi, tiltpos)
+            sleep(0.01)
         print "Center coordinates: " + str(pancenter) + "," + str(tiltcenter)
         print "Radius: " + str(radius)
         print "tiltmin: " + str(tiltmin)
@@ -183,12 +185,14 @@ def motorControlLoop():
 
     def setPanPos(pi, position):
         dutycycle = min(125000, max(25000, int(position * 50)))
+        #print "Setting pan dutycycle to " + str(dutycycle)
         pi.hardware_PWM(panServoGpio, 50, dutycycle)
         return
         
         
     def setTiltPos(pi, position):
         dutycycle = min(125000, max(25000, int(position * 50)))
+        #print "Setting tilt dutycycle to " + str(dutycycle)
         pi.hardware_PWM(tiltServoGpio, 50, dutycycle)
         return
 
@@ -279,7 +283,6 @@ def motorControlLoop():
     # Start pigpio
     os.system("sudo pigpiod")
     print "pigpiod started"
-    sleep(2)  # Wait for pigpiod to start
     pi = pigpio.pi()
     pi.set_mode(d0gpio, pigpio.INPUT)
     pi.set_mode(d1gpio, pigpio.INPUT)
@@ -349,6 +352,7 @@ def motorControlLoop():
         tiltcenter = inputdata[1]
         radius = inputdata[2]
         tiltmin = inputdata[3]
+        print "pancenter: " + str(pancenter) + "tiltcenter: " + str(tiltcenter) + "radius: " + str(radius) + "tiltmin: " + str(tiltmin)
     # If file cannot be found, set servo limits
     except IOError:
         print "ServoLimitData.pkl does not exist, entering servo limit setup mode"
@@ -375,56 +379,43 @@ def motorControlLoop():
             JSstatus['startBtn'] = False
             JSstatus['bBtn'] = False
             JSstatus, pancenter, tiltcenter, radius, tiltmin = setServoLimits(pi, JS, JSstatus)
+        elif JSstatus['yBtn']:
+            pipe.send("Switch to camera 1")
+        elif JSstatus['aBtn']:
+            pipe.send("Switch to camera 2")
+    # Limit slideSpeed to speedLimit near soft stops and to 0 when across soft stops, but respect deceleration limit
+        desiredSpeed = JSstatus['slideAxis']
+        if desiredSpeed < 0 and encoderCount > (upperSlideLimit - speedLimitZoneSize):
+            if encoderCount > upperSlideLimit:
+                desiredSpeed = 0
+            elif desiredSpeed < -speedLimit:
+                desiredSpeed = -speedLimit
+        if desiredSpeed > 0 and encoderCount < (lowerSlideLimit + speedLimitZoneSize):
+            if encoderCount < lowerSlideLimit:
+                desiredSpeed = 0
+            elif slideSpeed > speedLimit:
+                desiredSpeed = speedLimit
     # Limit slideSpeed change
-        if math.fabs(JSstatus['slideAxis']) > math.fabs(oldSlideSpeed):
-            if math.fabs(JSstatus['slideAxis'] - oldSlideSpeed) > maxaccel:
-                if JSstatus['slideAxis'] > oldSlideSpeed:
+        if math.fabs(desiredSpeed) > math.fabs(oldSlideSpeed):
+            if math.fabs(desiredSpeed - oldSlideSpeed) > maxaccel:
+                if desiredSpeed > oldSlideSpeed:
                     slideSpeed = oldSlideSpeed + maxaccel
                 else:
                     slideSpeed = oldSlideSpeed - maxaccel
             else:
-                    slideSpeed = JSstatus['slideAxis']
+                    slideSpeed = desiredSpeed
         else:
-            if math.fabs(JSstatus['slideAxis'] - oldSlideSpeed) > maxdecel:
-                if JSstatus['slideAxis'] > oldSlideSpeed:
+            if math.fabs(desiredSpeed - oldSlideSpeed) > maxdecel:
+                if desiredSpeed > oldSlideSpeed:
                     slideSpeed = oldSlideSpeed + maxdecel
                 else:
                     slideSpeed = oldSlideSpeed - maxdecel
             else:
-                slideSpeed = JSstatus['slideAxis']
+                slideSpeed = desiredSpeed
         #print "After acceleration/deceleration limit: " + str(slideSpeed)
-    # Calculate direction
-        if slideSpeed != 0:
-            if slideSpeed > 0:
-                direction = 1
-            else:
-                direction = 0
-    # Limit slideSpeed to speedLimit near soft stops and to 0 when across soft stops, but respect deceleration limit
-        if direction == 0 and encoderCount > (upperSlideLimit - speedLimitZoneSize):
-            if encoderCount > upperSlideLimit:
-                if slideSpeed >= -maxdecel:  # Beacuse direction is 0, slideSpeed must be <0
-                    slideSpeed = 0
-                else:
-                    slideSpeed += maxdecel
-            elif slideSpeed < -speedLimit:  # Beacuse direction is 0, slideSpeed must be <0
-                if slideSpeed >= -speedLimit - maxdecel:
-                    slideSpeed = -speedLimit
-                else:
-                    slideSpeed += maxdecel
-        if direction == 1 and encoderCount < (lowerSlideLimit + speedLimitZoneSize):
-            if encoderCount < lowerSlideLimit:
-                if slideSpeed <= maxdecel:  # Beacuse direction is 1, slideSpeed must be >0
-                    slideSpeed = 0
-                else:
-                    slideSpeed -= maxdecel
-            elif slideSpeed > speedLimit:  # Beacuse direction is 1, slideSpeed must be >0
-                if slideSpeed <= speedLimit + maxdecel:
-                    slideSpeed = speedLimit
-                else:
-                    slideSpeed -= maxdecel
     # Calculate new servo values
-        pan -= (1.5 * 10 ** (-9)) * (JSstatus['panAxis'] * math.fabs(JSstatus['panAxis']))
-        tilt += (0.9 * 10 ** (-9)) * (JSstatus['tiltAxis'] * math.fabs(JSstatus['tiltAxis']))
+        pan -= (7.5 * 10 ** (-9)) * (JSstatus['panAxis'] * math.fabs(JSstatus['panAxis']))
+        tilt += (4.5 * 10 ** (-9)) * (JSstatus['tiltAxis'] * math.fabs(JSstatus['tiltAxis']))
     # Limit servos to vertical max and within circle
         if tilt < tiltmin:
             tilt = tiltmin
@@ -446,9 +437,10 @@ def motorControlLoop():
         if tilt != oldtilt:
             setTiltPos(pi, tilt)
         oldtilt = tilt
-        sleep(.01)
+        sleep(.005)
 
     # Cleanup and shutdown
+    pipe.send("Quit")
     xboxdrv.send_signal(signal.SIGINT)
     print "waiting for xboxdrv to terminate"
     xboxdrv.wait()
@@ -459,10 +451,11 @@ def motorControlLoop():
     #os.system("shutdown -h now")
 
 
-def ATEMControlLoop(ATEMAddress):
+def ATEMControlLoop(ATEMAddress, pipe):
     import socket
     import struct
     import sys
+    from time import sleep
     
     def dumpHex (buffer) :
         s = ''
@@ -670,17 +663,36 @@ def ATEMControlLoop(ATEMAddress):
             input['shortText'] = data[21:27]
             print input
 
-    def sendATEMCommand(command, data):
-        global ATEMAddress
+    def sendATEMCommand(ATEMAddress, command, data):
         a = Atem()
         a.connectToSwitcher ((ATEMAddress,9910))
         a.waitForPacket()
         a.waitForPacket()
         a.waitForPacket()
         a.waitForPacket()
-        a.sendCommand (command, data); 
+        a.sendCommand (command, data);
+        a.waitForPacket()
+        return
+        
+    done = False
+    while not done:
+        while not pipe.poll():
+            sleep(0.0001)
+        action = pipe.recv()
+        if action == "Switch to camera 1":
+            sendATEMCommand(ATEMAddress, "CPgI", "\x00\x00\x00\x01")
+        elif action == "Switch to camera 2":
+            sendATEMCommand(ATEMAddress, "CPgI", "\x00\x00\x00\x02")
+        elif action == "Quit":
+            done = True
+            
+    return
 
 
-motorProcess = Process(target=motorControlLoop, args=())
+conn1, conn2 = Pipe()
+motorProcess = Process(target=motorControlLoop, args=(conn1,))
 motorProcess.start()
 print "motorControlLoop started"
+ATEMprocess = Process(target=ATEMControlLoop, args=(ATEMAddress, conn2,))
+ATEMprocess.start()
+print "ATEMControlLoop started"
