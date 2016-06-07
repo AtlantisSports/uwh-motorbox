@@ -282,6 +282,7 @@ def motorControlLoop(pipe):
 
     # Start pigpio
     os.system("sudo pigpiod")
+    sleep(3)
     print "pigpiod started"
     pi = pigpio.pi()
     pi.set_mode(d0gpio, pigpio.INPUT)
