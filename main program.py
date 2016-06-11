@@ -1,9 +1,10 @@
-from multiprocessing import Process, Pipe
+from multiprocessing import Process, Pipe, Queue
+import os
 
 
 ATEMAddress = '192.168.10.10'
 
-def motorControlLoop(pipe):
+def motorControlLoop(pipe, watchdogQueue):
     from evdev import InputDevice, categorize, ecodes, list_devices
     from time import sleep
     import time
@@ -21,8 +22,8 @@ def motorControlLoop(pipe):
     # Options
     maxaccel = 2.5
     maxdecel = 1.5
-    speedLimit = 50  # Motor speed limit near soft limits
-    speedLimitZoneSize = 25000  # Measured in encoder pulses
+    speedLimit = 100  # Motor speed limit near soft limits
+    speedLimitZoneSize = 10000  # Measured in encoder pulses
 
     # Setup
     d0gpio = 4  # This corresponds to pin 7
@@ -38,18 +39,20 @@ def motorControlLoop(pipe):
     oeGpio = 24  # This corresponds to pin 18
     sel1gpio = 18  # This corresponds to pin 12
     sel2gpio = 23  # This corresponds to pin 16
-    panServoGpio = 12  # This corresponds to pin 32
-    tiltServoGpio = 13  # This corresponds to pin 33
+    panServoGpio = 13  # This corresponds to pin 33
+    tiltServoGpio = 12  # This corresponds to pin 32
     slideGpio = 7  # This corresponds to pin 26
 
 
-    def setSlideLimits(pi, JS, JSstatus):
+    def setSlideLimits(pi, JS, JSstatus, watchdogQueue):
         print "Entering slide limit set mode"
         done = False
         oldslideAxis = 0.
         limit1 = 0
         limit2 = 0
         while not done:
+            # Feed the watchdog
+            watchdogQueue.put('OK')
             # Get events from evdev
             JSstatus = getJSEvents(JS, JSstatus)
             # Send the new slide speed if changed
@@ -80,7 +83,7 @@ def motorControlLoop(pipe):
         return JSstatus, upperSlideLimit, lowerSlideLimit
 
 
-    def setServoLimits(pi, JS, JSstatus):
+    def setServoLimits(pi, JS, JSstatus, watchdogQueue):
         print "Entering servo limit set mode"
         limit1 = 0
         limit2 = 0
@@ -91,6 +94,8 @@ def motorControlLoop(pipe):
         setTiltPos(pi, tiltpos)
         done = False
         while not done:
+            # Feed the watchdog
+            watchdogQueue.put('OK')
             # Get events from evdev
             JSstatus = getJSEvents(JS, JSstatus)
             if JSstatus['yBtn']:
@@ -177,7 +182,7 @@ def motorControlLoop(pipe):
 
 
     def setSlideSpeed(pi, speed):
-        dutycycle = min(9500, max(9000, 9250 + speed))
+        dutycycle = min(9500, max(9000, 9250 + speed/2))
         #print "Setting slide dutycycle to " + str(dutycycle)
         pi.set_PWM_dutycycle(slideGpio, dutycycle)
         return
@@ -343,6 +348,9 @@ def motorControlLoop(pipe):
     encoderCount = 0
     direction = 0
     # curTime = 0
+
+    # Start the watchdog
+    watchdogQueue.put('start')
     
     # Read servo limit info from file
     try:
@@ -357,16 +365,18 @@ def motorControlLoop(pipe):
     # If file cannot be found, set servo limits
     except IOError:
         print "ServoLimitData.pkl does not exist, entering servo limit setup mode"
-        JSstatus, pancenter, tiltcenter, radius, tiltmin = setServoLimits(pi, JS, JSstatus)
+        JSstatus, pancenter, tiltcenter, radius, tiltmin = setServoLimits(pi, JS, JSstatus, watchdogQueue)
 
     # Set the slide limits before normal operation
-    JSstatus, upperSlideLimit, lowerSlideLimit = setSlideLimits(pi, JS, JSstatus)
+    JSstatus, upperSlideLimit, lowerSlideLimit = setSlideLimits(pi, JS, JSstatus, watchdogQueue)
 
     print "Entering Motor Control Loop"
 
     # -----------Main Program Loop-------------
     while not JSstatus['backBtn'] or not JSstatus['startBtn']:
         # print str(curTime - time.time())
+    # Feed the watchdog
+        watchdogQueue.put('OK')
     # Get events from evdev
         JSstatus = getJSEvents(JS, JSstatus)
     # Read the current encoder position from the MCU
@@ -375,11 +385,11 @@ def motorControlLoop(pipe):
         if JSstatus['startBtn'] and JSstatus['xBtn']:
             JSstatus['startBtn'] = False
             JSstatus['xBtn'] = False
-            JSstatus, upperSlideLimit, lowerSlideLimit = setSlideLimits(pi, JS, JSstatus)
+            JSstatus, upperSlideLimit, lowerSlideLimit = setSlideLimits(pi, JS, JSstatus, watchdogQueue)
         elif JSstatus['startBtn'] and JSstatus['bBtn']:
             JSstatus['startBtn'] = False
             JSstatus['bBtn'] = False
-            JSstatus, pancenter, tiltcenter, radius, tiltmin = setServoLimits(pi, JS, JSstatus)
+            JSstatus, pancenter, tiltcenter, radius, tiltmin = setServoLimits(pi, JS, JSstatus, watchdogQueue)
         elif JSstatus['yBtn']:
             pipe.send("Switch to camera 1")
         elif JSstatus['aBtn']:
@@ -449,7 +459,7 @@ def motorControlLoop(pipe):
     pi.stop()
     os.system("sudo killall pigpiod")
     print "Motor control loop end reached"
-    #os.system("shutdown -h now")
+    os.system("shutdown -h now")
 
 
 def ATEMControlLoop(ATEMAddress, pipe):
@@ -686,14 +696,45 @@ def ATEMControlLoop(ATEMAddress, pipe):
             sendATEMCommand(ATEMAddress, "CPgI", "\x00\x00\x00\x02")
         elif action == "Quit":
             done = True
+            print 'Quitting ATEMControlLoop'
             
     return
 
 
 conn1, conn2 = Pipe()
-motorProcess = Process(target=motorControlLoop, args=(conn1,))
+watchdogQueue = Queue()
+motorProcess = Process(target=motorControlLoop, args=(conn1, watchdogQueue,))
 motorProcess.start()
 print "motorControlLoop started"
 ATEMprocess = Process(target=ATEMControlLoop, args=(ATEMAddress, conn2,))
 ATEMprocess.start()
 print "ATEMControlLoop started"
+
+
+done = False
+while not done:
+    item = watchdogQueue.get()
+    if item == 'start':
+        print 'watchdog started'
+        running = True
+        while running:
+            try:
+                item = watchdogQueue.get(True, .5)
+            except:
+                print 'Restrting motorControlLoop'
+                running = False
+                os.system('sudo killall pigpio')
+                os.system('sudo killall xboxdrv')
+                motorProcess.terminate()
+                motorProcess = Process(target=motorControlLoop, args=(conn1, watchdogQueue,))
+                motorProcess.start()
+            if item == 'OK':
+                pass
+            elif item == 'quit':
+                running = False
+                done = True
+            else:
+                print 'Invalid item in queue'
+    else:
+        print 'Invalid item in queue'
+print 'Quitting watchdog'
