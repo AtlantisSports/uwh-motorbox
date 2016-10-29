@@ -436,7 +436,7 @@ def motorControlLoop(pipe, watchdogQueue):
             vector = np.multiply(vector, (radius / norm))
             pan = pancenter + vector[0]
             tilt = tiltcenter + vector[1]
-    # Send frequency of stepper pulses if changed
+    # Send slideSpeed value if changed
         if slideSpeed != oldSlideSpeed:
             setSlideSpeed(pi, slideSpeed)
         oldSlideSpeed = slideSpeed
