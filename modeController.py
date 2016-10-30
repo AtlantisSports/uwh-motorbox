@@ -24,9 +24,9 @@ class ModeController():
         Checks if the mode should be switched based on button statuses
         '''
         if self.mode == "Running":
-            if JSStatus['StartBtn'] and JSStatus['XBtn']:
+            if JSStatus['StartBtn'] and JSStatus['XBtn'] and not JSStatus['YBtn']:
                 self.mode = "SlideLimitSetup"
-            elif JSStatus['StartBtn'] and JSStatus['YBtn']:
+            elif JSStatus['StartBtn'] and JSStatus['YBtn'] and not JSStatus['XBtn']:
                 self.mode = "ServoLimitSetup"
         
         if JSStatus['StartBtn'] and JSStatus['BackBtn']:
