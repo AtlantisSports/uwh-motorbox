@@ -19,6 +19,7 @@ def motorControlLoop(pipe, watchdogQueue):
 
     print "Motor Control Loop imports complete"
 
+"""
     # Options
     maxaccel = 2.5
     maxdecel = 1.5
@@ -42,7 +43,7 @@ def motorControlLoop(pipe, watchdogQueue):
     panServoGpio = 13  # This corresponds to pin 33
     tiltServoGpio = 12  # This corresponds to pin 32
     slideGpio = 7  # This corresponds to pin 26
-
+"""
 
     def setSlideLimits(pi, JS, JSstatus, watchdogQueue):
         print "Entering slide limit set mode"
@@ -202,6 +203,7 @@ def motorControlLoop(pipe, watchdogQueue):
         return
 
 
+'''
     def getEncoderCount(pi):
         count = 0
         pi.write(sel1gpio, 0)
@@ -284,6 +286,7 @@ def motorControlLoop(pipe, watchdogQueue):
         
         #print "Current count is " + str(count)
         return count
+'''
 
     # Start pigpio
     os.system("sudo pigpiod")
