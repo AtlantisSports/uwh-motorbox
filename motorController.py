@@ -7,10 +7,11 @@ Created on February 10, 2017
 import configparser
 import encoder
 import math
+import pigpio
 
 class MotorController():
     '''
-    controls the slide motor, including acceleration limits
+    controls the slide motor, including acceleration limits and end limits
     '''
     
     useEndLimits = True; # When True, enables end stop limits

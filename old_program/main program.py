@@ -19,7 +19,7 @@ def motorControlLoop(pipe, watchdogQueue):
 
     print "Motor Control Loop imports complete"
 
-"""
+'''
     # Options
     maxaccel = 2.5
     maxdecel = 1.5
@@ -43,7 +43,6 @@ def motorControlLoop(pipe, watchdogQueue):
     panServoGpio = 13  # This corresponds to pin 33
     tiltServoGpio = 12  # This corresponds to pin 32
     slideGpio = 7  # This corresponds to pin 26
-"""
 
     def setSlideLimits(pi, JS, JSstatus, watchdogQueue):
         print "Entering slide limit set mode"
@@ -82,7 +81,7 @@ def motorControlLoop(pipe, watchdogQueue):
             sleep(0.01)
         print "Exiting slide limit set mode"
         return JSstatus, upperSlideLimit, lowerSlideLimit
-
+'''
 
     def setServoLimits(pi, JS, JSstatus, watchdogQueue):
         print "Entering servo limit set mode"
@@ -455,7 +454,7 @@ def motorControlLoop(pipe, watchdogQueue):
         oldpan = pan
     # Send tilt value if changed
         if tilt != oldtilt:
-            setTiltPos(pi, tilt)
+            setTiltPos(pi, tiltp)
         oldtilt = tilt
         sleep(.005)
 
