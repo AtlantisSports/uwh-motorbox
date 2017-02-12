@@ -181,13 +181,13 @@ def motorControlLoop(pipe, watchdogQueue):
 
         return JSstatus
 
-
+'''
     def setSlideSpeed(pi, speed):
         dutycycle = min(9500, max(9000, 9250 + speed/2))
         #print "Setting slide dutycycle to " + str(dutycycle)
         pi.set_PWM_dutycycle(slideGpio, dutycycle)
         return
-
+'''
 
     def setPanPos(pi, position):
         dutycycle = min(125000, max(25000, int(position * 50)))
@@ -293,6 +293,7 @@ def motorControlLoop(pipe, watchdogQueue):
     sleep(3)
     print "pigpiod started"
     pi = pigpio.pi()
+'''
     pi.set_mode(d0gpio, pigpio.INPUT)
     pi.set_mode(d1gpio, pigpio.INPUT)
     pi.set_mode(d2gpio, pigpio.INPUT)
@@ -320,11 +321,14 @@ def motorControlLoop(pipe, watchdogQueue):
     pi.write(sel1gpio, 0)
     pi.write(sel2gpio, 1)
     pi.hardware_clock(clkGpio, 30000000)
+'''
     pi.hardware_PWM(panServoGpio, 50, 75000)
     pi.hardware_PWM(tiltServoGpio, 50, 75000)
+'''
     pi.set_PWM_frequency(slideGpio, 50)
     pi.set_PWM_range(slideGpio, 10000)
     pi.set_PWM_dutycycle(slideGpio, 750)
+'''
 
     # Start xboxdrv
     xboxdrv = subprocess.Popen(shlex.split(
@@ -342,14 +346,14 @@ def motorControlLoop(pipe, watchdogQueue):
 
     # Set variables
     JSstatus = dict(backBtn = False, startBtn = False, aBtn = False, bBtn = False, xBtn = False, yBtn = False, panAxis = 0., tiltAxis = 0., slideAxis = 0., slideDir = 1)
-    slideSpeed = 0.
-    oldSlideSpeed = slideSpeed
+    #slideSpeed = 0.
+    #oldSlideSpeed = slideSpeed
     pan = 1500.
     tilt = 1500.
     oldpan = pan
     oldtilt = tilt
-    encoderCount = 0
-    direction = 0
+    #encoderCount = 0
+    #direction = 0
     # curTime = 0
 
     # Start the watchdog
@@ -383,7 +387,7 @@ def motorControlLoop(pipe, watchdogQueue):
     # Get events from evdev
         JSstatus = getJSEvents(JS, JSstatus)
     # Read the current encoder position from the MCU
-        encoderCount = getEncoderCount(pi)
+        #encoderCount = getEncoderCount(pi)
     # Respond to button presses
         if JSstatus['startBtn'] and JSstatus['xBtn']:
             JSstatus['startBtn'] = False
@@ -398,6 +402,7 @@ def motorControlLoop(pipe, watchdogQueue):
         elif JSstatus['aBtn']:
             pipe.send("Switch to camera 2")
     # Limit slideSpeed to speedLimit near soft stops and to 0 when across soft stops, but respect deceleration limit
+'''
         desiredSpeed = JSstatus['slideAxis']
         if desiredSpeed < 0 and encoderCount > (upperSlideLimit - speedLimitZoneSize):
             if encoderCount > upperSlideLimit:
@@ -427,6 +432,7 @@ def motorControlLoop(pipe, watchdogQueue):
             else:
                 slideSpeed = desiredSpeed
         #print "After acceleration/deceleration limit: " + str(slideSpeed)
+'''
     # Calculate new servo values
         pan -= (7.5 * 10 ** (-9)) * (JSstatus['panAxis'] * math.fabs(JSstatus['panAxis']))
         tilt += (4.5 * 10 ** (-9)) * (JSstatus['tiltAxis'] * math.fabs(JSstatus['tiltAxis']))

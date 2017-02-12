@@ -6,11 +6,12 @@ Created on February 10, 2017
 
 import pigpio
 import configparser
+from time import sleep
 
 
 class Encoder():
     '''
-    Interfaces with the HCTL-2022 encoder self.counter IC to get and set the encoder self.count
+    Interfaces with the HCTL-2022 encoder counter IC to get and set the encoder count
     '''
 
 
@@ -18,7 +19,7 @@ class Encoder():
         '''
         Constructor
 
-        Arguments:         pi: a pigpio.pi object to control gpio's
+        Arguments:         pi: a pigpio.pi object used to control gpio's
                    configFile: the .ini file to read config from
         '''
 
@@ -41,8 +42,42 @@ class Encoder():
         self.sel1gpio = config['Setup'].getint('sel1gpio')
         self.sel2gpio = config['Setup'].getint('sel2gpio')
 
+        self.pi.set_mode(self.d0gpio, pigpio.INPUT)
+        self.pi.set_mode(self.d1gpio, pigpio.INPUT)
+        self.pi.set_mode(self.d2gpio, pigpio.INPUT)
+        self.pi.set_mode(self.d3gpio, pigpio.INPUT)
+        self.pi.set_mode(self.d4gpio, pigpio.INPUT)
+        self.pi.set_mode(self.d5gpio, pigpio.INPUT)
+        self.pi.set_mode(self.d6gpio, pigpio.INPUT)
+        self.pi.set_mode(self.d7gpio, pigpio.INPUT)
+        self.pi.set_pull_up_down(self.d0gpio, pigpio.PUD_UP)
+        self.pi.set_pull_up_down(self.d1gpio, pigpio.PUD_UP)
+        self.pi.set_pull_up_down(self.d2gpio, pigpio.PUD_UP)
+        self.pi.set_pull_up_down(self.d3gpio, pigpio.PUD_UP)
+        self.pi.set_pull_up_down(self.d4gpio, pigpio.PUD_UP)
+        self.pi.set_pull_up_down(self.d5gpio, pigpio.PUD_UP)
+        self.pi.set_pull_up_down(self.d6gpio, pigpio.PUD_UP)
+        self.pi.set_pull_up_down(self.d7gpio, pigpio.PUD_UP)
+        self.pi.set_mode(self.rstGpio, pigpio.OUTPUT)
+        self.pi.set_mode(self.oeGpio, pigpio.OUTPUT)
+        self.pi.set_mode(self.sel1gpio, pigpio.OUTPUT)
+        self.pi.set_mode(self.sel2gpio, pigpio.OUTPUT)
 
-    def getEncoderself.count(self):
+        self.resetEncoderCount()
+        self.pi.write(self.oeGpio, 1)
+        self.pi.write(self.sel1gpio, 0)
+        self.pi.write(self.sel2gpio, 1)
+
+        self.pi.hardware_clock(self.clkGpio, 30000000)
+
+
+    def resetEncoderCount(self):
+        self.pi.write(self.rstGpio, 0)
+        sleep(0.000000035)
+        self.pi.write(self.rstGpio, 1)
+
+
+    def getEncoderCount(self):
         self.count = 0
         self.pi.write(self.sel1gpio, 0)
         self.pi.write(self.sel2gpio, 1)
