@@ -40,6 +40,12 @@ class MotorController():
         self.pi.set_PWM_range(self.slideGpio, 10000)
         self.pi.set_PWM_dutycycle(self.slideGpio, 750)
 
+        self.limit1 = 0
+        slef.limit2 = 0
+        self.upperLimit = 0
+        self.lowerLimit = 0
+
+        self.direction = 1  # Switches between 1 and -1 to switch deirections
         self.speed = 0
         self.oldSpeed = 0
         self.targetSpeed = 0
@@ -95,11 +101,11 @@ class MotorController():
         self.setPWM()
 
         
-    def setPWM(self):
+    def setPWM(self, speed = None):
         '''
         Changes the PWM output so the motor goes at self.speed
         '''
-        dutycycle = min(9500, max(9000, 9250 + self.speed/2))
+        dutycycle = min(9500, max(9000, 9250 + (speed if speed!=None else self.speed)/2))
         #print "Setting slide dutycycle to " + str(dutycycle)
         self.pi.set_PWM_dutycycle(self.slideGpio, dutycycle)
 
@@ -124,3 +130,25 @@ class MotorController():
         self.speed = 0
 
         self.setPWM()
+        
+    
+    def setLimit(self):
+        '''
+        Sets either limit1 or limit2 to the current encoder count.
+        If limit1 and limit2 are !=0, sets upperLimit and lowerLimit
+        to limit1 and limit2 appropriately, then resets limit1 and
+        limit2 to 0.
+        '''
+        self.encoderCount = self.encoder.getEncoderCount()
+
+        if self.limit1 == 0:
+            self.limit1 = self.encoderCount
+            print("limit1 set to: ", limit1)
+        else:
+            self.limit2 = self.encoderCount
+            print("limit2 set to: ", limit2)
+            self.upperLimit = max(self.limit1, self.limit2)
+            self.lowerLimit = min(self.limit1, self.limit2)
+            self.limit1 = 0
+            self.limit2 = 0
+
