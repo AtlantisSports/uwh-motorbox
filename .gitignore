@@ -1,5 +1,7 @@
+.AppleDouble
+.vscode
 
-# Cpoied from sparkfun Eagle Libraries
+# Below this line is cpoied from sparkfun Eagle Libraries
 
 # From original gitignore in libraries repo, not sure what they are from.
 *.orig
@@ -215,3 +217,4 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+
