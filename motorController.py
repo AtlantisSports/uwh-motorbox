@@ -41,10 +41,10 @@ class MotorController():
         self.pi.set_PWM_range(self.slideGpio, 10000)
         self.pi.set_PWM_dutycycle(self.slideGpio, 750)
 
-        self.limit1 = 0
-        slef.limit2 = 0
-        self.upperLimit = 0
-        self.lowerLimit = 0
+        self.limit1 = None
+        slef.limit2 = None
+        self.upperLimit = None
+        self.lowerLimit = None
 
         self.direction = 1  # Switches between 1 and -1 to switch deirections
         self.speed = 0
@@ -69,7 +69,7 @@ class MotorController():
 
         self.encoderCount = self.encoder.getEncoderCount()
 
-        if useEndLimits:
+        if useEndLimits and self.upperLimit != None and self.lowerLimit != None:
             if self.targetSpeed < 0 and self.encoderCount > (self.upperLimit - self.speedLimitZoneSize):
                 if self.encoderCount > self.upperLimit:
                     self.targetSpeed = 0
@@ -142,7 +142,7 @@ class MotorController():
         '''
         self.encoderCount = self.encoder.getEncoderCount()
 
-        if self.limit1 == 0:
+        if self.limit1 == None:
             self.limit1 = self.encoderCount
             print("limit1 set to: ", limit1)
         else:

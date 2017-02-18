@@ -81,7 +81,7 @@ def motorControlLoop(pipe, watchdogQueue):
             sleep(0.01)
         print "Exiting slide limit set mode"
         return JSstatus, upperSlideLimit, lowerSlideLimit
-'''
+
 
     def setServoLimits(pi, JS, JSstatus, watchdogQueue):
         print "Entering servo limit set mode"
@@ -135,7 +135,7 @@ def motorControlLoop(pipe, watchdogQueue):
         output.close()
         print "Exiting servo limit set mode"
         return JSstatus, pancenter, tiltcenter, radius, tiltmin
-
+'''
 
     def getJSEvents(JS, JSstatus):
         JSevents = JS.read()
@@ -186,7 +186,7 @@ def motorControlLoop(pipe, watchdogQueue):
         #print "Setting slide dutycycle to " + str(dutycycle)
         pi.set_PWM_dutycycle(slideGpio, dutycycle)
         return
-'''
+
 
     def setPanPos(pi, position):
         dutycycle = min(125000, max(25000, int(position * 50)))
@@ -202,7 +202,6 @@ def motorControlLoop(pipe, watchdogQueue):
         return
 
 
-'''
     def getEncoderCount(pi):
         count = 0
         pi.write(sel1gpio, 0)
@@ -320,10 +319,8 @@ def motorControlLoop(pipe, watchdogQueue):
     pi.write(sel1gpio, 0)
     pi.write(sel2gpio, 1)
     pi.hardware_clock(clkGpio, 30000000)
-'''
     pi.hardware_PWM(panServoGpio, 50, 75000)
     pi.hardware_PWM(tiltServoGpio, 50, 75000)
-'''
     pi.set_PWM_frequency(slideGpio, 50)
     pi.set_PWM_range(slideGpio, 10000)
     pi.set_PWM_dutycycle(slideGpio, 750)
@@ -345,19 +342,20 @@ def motorControlLoop(pipe, watchdogQueue):
 
     # Set variables
     JSstatus = dict(backBtn = False, startBtn = False, aBtn = False, bBtn = False, xBtn = False, yBtn = False, panAxis = 0., tiltAxis = 0., slideAxis = 0., slideDir = 1)
-    #slideSpeed = 0.
-    #oldSlideSpeed = slideSpeed
+'''
+    slideSpeed = 0.
+    oldSlideSpeed = slideSpeed
     pan = 1500.
     tilt = 1500.
     oldpan = pan
     oldtilt = tilt
-    #encoderCount = 0
-    #direction = 0
+    encoderCount = 0
+    direction = 0
     # curTime = 0
-
+'''
     # Start the watchdog
     watchdogQueue.put('start')
-    
+'''
     # Read servo limit info from file
     try:
         pklfile = open('ServoLimitData.pkl', 'r')
@@ -372,7 +370,7 @@ def motorControlLoop(pipe, watchdogQueue):
     except IOError:
         print "ServoLimitData.pkl does not exist, entering servo limit setup mode"
         JSstatus, pancenter, tiltcenter, radius, tiltmin = setServoLimits(pi, JS, JSstatus, watchdogQueue)
-
+'''
     # Set the slide limits before normal operation
     JSstatus, upperSlideLimit, lowerSlideLimit = setSlideLimits(pi, JS, JSstatus, watchdogQueue)
 
@@ -431,7 +429,6 @@ def motorControlLoop(pipe, watchdogQueue):
             else:
                 slideSpeed = desiredSpeed
         #print "After acceleration/deceleration limit: " + str(slideSpeed)
-'''
     # Calculate new servo values
         pan -= (7.5 * 10 ** (-9)) * (JSstatus['panAxis'] * math.fabs(JSstatus['panAxis']))
         tilt += (4.5 * 10 ** (-9)) * (JSstatus['tiltAxis'] * math.fabs(JSstatus['tiltAxis']))
@@ -457,6 +454,7 @@ def motorControlLoop(pipe, watchdogQueue):
             setTiltPos(pi, tiltp)
         oldtilt = tilt
         sleep(.005)
+'''
 
     # Cleanup and shutdown
     pipe.send("Quit")
