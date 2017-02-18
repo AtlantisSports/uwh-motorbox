@@ -331,7 +331,7 @@ def motorControlLoop(pipe, watchdogQueue):
             "sudo xboxdrv --detach-kernel-driver -s --deadzone 15% --trigger-as-zaxis --deadzone-trigger 15% -l 2"))
     print "xboxdrv started"
     sleep(5)
-
+'''
     # Initiate joystick device
     devices = [InputDevice(fn) for fn in list_devices()]
     for dev in devices:
@@ -342,7 +342,7 @@ def motorControlLoop(pipe, watchdogQueue):
 
     # Set variables
     JSstatus = dict(backBtn = False, startBtn = False, aBtn = False, bBtn = False, xBtn = False, yBtn = False, panAxis = 0., tiltAxis = 0., slideAxis = 0., slideDir = 1)
-'''
+
     slideSpeed = 0.
     oldSlideSpeed = slideSpeed
     pan = 1500.
