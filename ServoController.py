@@ -79,9 +79,11 @@ class ServoController():
      
         if self.oldPan != self.pan:
             self.setPan()
+            self.oldPan = self.pan
 
         if self.oldTilt != self.tilt:
             self.setTilt()
+            self.oldTilt = self.tilt
 
 
 
@@ -158,6 +160,7 @@ class ServoController():
             pickle.dump(datatosave, output)
             output.close()
 
+            limitsSet = True
             self.limit1 = None
             self.limit2 = None
             self.limit3 = None

@@ -99,7 +99,9 @@ class MotorController():
             else:
                 self.speed = self.targetSpeed
 
-        self.setPWM()
+        if self.speed != self.oldSpeed:
+            self.setPWM()
+            self.oldSpeed = self.speed
 
         
     def setPWM(self, speed = None):
@@ -153,3 +155,14 @@ class MotorController():
             self.limit1 = 0
             self.limit2 = 0
 
+
+    def switchDirection(self):
+        self.direction *= -1
+
+
+    @property
+    def limitsSet(self):
+        if upperLimit != None and lowerLimit != None:
+            return True
+        else:
+            return False

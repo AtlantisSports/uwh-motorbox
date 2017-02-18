@@ -135,7 +135,7 @@ def motorControlLoop(pipe, watchdogQueue):
         output.close()
         print "Exiting servo limit set mode"
         return JSstatus, pancenter, tiltcenter, radius, tiltmin
-'''
+
 
     def getJSEvents(JS, JSstatus):
         JSevents = JS.read()
@@ -180,7 +180,7 @@ def motorControlLoop(pipe, watchdogQueue):
 
         return JSstatus
 
-'''
+
     def setSlideSpeed(pi, speed):
         dutycycle = min(9500, max(9000, 9250 + speed/2))
         #print "Setting slide dutycycle to " + str(dutycycle)
@@ -370,7 +370,7 @@ def motorControlLoop(pipe, watchdogQueue):
     except IOError:
         print "ServoLimitData.pkl does not exist, entering servo limit setup mode"
         JSstatus, pancenter, tiltcenter, radius, tiltmin = setServoLimits(pi, JS, JSstatus, watchdogQueue)
-'''
+
     # Set the slide limits before normal operation
     JSstatus, upperSlideLimit, lowerSlideLimit = setSlideLimits(pi, JS, JSstatus, watchdogQueue)
 
@@ -394,12 +394,13 @@ def motorControlLoop(pipe, watchdogQueue):
             JSstatus['startBtn'] = False
             JSstatus['bBtn'] = False
             JSstatus, pancenter, tiltcenter, radius, tiltmin = setServoLimits(pi, JS, JSstatus, watchdogQueue)
+'''
         elif JSstatus['yBtn']:
             pipe.send("Switch to camera 1")
         elif JSstatus['aBtn']:
             pipe.send("Switch to camera 2")
-    # Limit slideSpeed to speedLimit near soft stops and to 0 when across soft stops, but respect deceleration limit
 '''
+    # Limit slideSpeed to speedLimit near soft stops and to 0 when across soft stops, but respect deceleration limit
         desiredSpeed = JSstatus['slideAxis']
         if desiredSpeed < 0 and encoderCount > (upperSlideLimit - speedLimitZoneSize):
             if encoderCount > upperSlideLimit:
@@ -462,10 +463,14 @@ def motorControlLoop(pipe, watchdogQueue):
     print "waiting for xboxdrv to terminate"
     xboxdrv.wait()
     print "xboxdrv terminated"
+'''
     pi.stop()
+'''
     os.system("sudo killall pigpiod")
     print "Motor control loop end reached"
+'''
     os.system("shutdown -h now")
+'''
 
 
 def ATEMControlLoop(ATEMAddress, pipe):
