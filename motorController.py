@@ -31,8 +31,9 @@ class MotorController():
 
         self.maxAccel = config['Options'].getfloat('maxAccel')
         self.maxDecel = config['Options'].getfloat('maxDecel')
-        self.speedLimit = config['Options'].getfloat('speedLimit')
-        self.speedLimitZoneSize = config['Options'].getfloat('speedLimitZoneSize')
+        self.speedLimit = config['Options'].getint('speedLimit')
+        self.speedLimitZoneSize = config['Options'].getint('speedLimitZoneSize')
+        self.useEndLimits = config['Options'].getboolean('useEndLimits')
         self.gpio = config['Setup'].getint('slideGpio')
         
         self.encoder = encoder.Encoder(pi, configFile)
@@ -69,7 +70,7 @@ class MotorController():
 
         self.encoderCount = self.encoder.getEncoderCount()
 
-        if useEndLimits and self.upperLimit != None and self.lowerLimit != None:
+        if self.useEndLimits and self.upperLimit != None and self.lowerLimit != None:
             if self.targetSpeed < 0 and self.encoderCount > (self.upperLimit - self.speedLimitZoneSize):
                 if self.encoderCount > self.upperLimit:
                     self.targetSpeed = 0
