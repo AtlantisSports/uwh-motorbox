@@ -31,22 +31,22 @@ class ServoController():
         config.read(configFile)
         
         self.panGpio = config['Setup'].getint('panServoGpio')
-        self.tiltGpio = config['Setup'].getint('tileServoGpio')
+        self.tiltGpio = config['Setup'].getint('tiltServoGpio')
 
         self.pi.hardware_PWM(self.panGpio, 50, 75000)
         self.pi.hardware_PWM(self.tiltGpio, 50, 75000)
         
         # Read servo limit info from file
         try:
-            pklFile = open('ServoLimitData.pkl', 'r')
+            pklFile = open('ServoLimitData.pkl', 'rb')
             inputdata = pickle.load(pklFile)
             pklFile.close()
             self.panCenter = inputdata[0]
             self.tiltCenter = inputdata[1]
-            radius = inputdata[2]
-            tiltMin = inputdata[3]
-            print("pancenter: ", pancenter, "tiltcenter: ", tiltcenter, "radius: ", 
-                    radius, "tiltmin: ", tiltmin)
+            self.radius = inputdata[2]
+            self.tiltMin = inputdata[3]
+            print("pancenter: ", self.panCenter, "tiltcenter: ", self.tiltCenter,
+                    "radius: ", self.radius, "tiltmin: ", self.tiltMin)
             self.limitsSet = True
         # If file cannot be found, set servo limits
         except IOError:
@@ -133,10 +133,10 @@ class ServoController():
             print("limit1 set to ", self.limit1)
         elif self.limit2 == None:
             self.limit2 = [self.pan, self.tilt]
-            print("limit2 set to ", limit2)
+            print("limit2 set to ", self.limit2)
         elif self.limit3 == None:
             limit3 = [panpos, tiltpos]
-            print("limit3 set to ", limit3)
+            print("limit3 set to ", self.limit3)
         else:
             tiltMin = self.tilt
             d = 2 * (self.limit1[0] * (self.limit2[1] - self.limit3[1]) + self.limit2[0]

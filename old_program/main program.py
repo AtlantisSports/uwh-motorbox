@@ -284,14 +284,14 @@ def motorControlLoop(pipe, watchdogQueue):
         
         #print "Current count is " + str(count)
         return count
-'''
+
 
     # Start pigpio
     os.system("sudo pigpiod")
     sleep(3)
     print "pigpiod started"
     pi = pigpio.pi()
-'''
+
     pi.set_mode(d0gpio, pigpio.INPUT)
     pi.set_mode(d1gpio, pigpio.INPUT)
     pi.set_mode(d2gpio, pigpio.INPUT)
@@ -324,14 +324,14 @@ def motorControlLoop(pipe, watchdogQueue):
     pi.set_PWM_frequency(slideGpio, 50)
     pi.set_PWM_range(slideGpio, 10000)
     pi.set_PWM_dutycycle(slideGpio, 750)
-'''
+
 
     # Start xboxdrv
     xboxdrv = subprocess.Popen(shlex.split(
             "sudo xboxdrv --detach-kernel-driver -s --deadzone 15% --trigger-as-zaxis --deadzone-trigger 15% -l 2"))
     print "xboxdrv started"
     sleep(5)
-'''
+
     # Initiate joystick device
     devices = [InputDevice(fn) for fn in list_devices()]
     for dev in devices:
@@ -459,16 +459,14 @@ def motorControlLoop(pipe, watchdogQueue):
 
     # Cleanup and shutdown
     pipe.send("Quit")
+'''
     xboxdrv.send_signal(signal.SIGINT)
     print "waiting for xboxdrv to terminate"
     xboxdrv.wait()
     print "xboxdrv terminated"
-'''
     pi.stop()
-'''
     os.system("sudo killall pigpiod")
     print "Motor control loop end reached"
-'''
     os.system("shutdown -h now")
 '''
 

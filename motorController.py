@@ -31,19 +31,19 @@ class MotorController():
 
         self.maxAccel = config['Options'].getfloat('maxAccel')
         self.maxDecel = config['Options'].getfloat('maxDecel')
-        self.speedLimit = config['Options'].getint('speedLimit')
+        self.speedLimit = config['Options'].getfloat('speedLimit')
         self.speedLimitZoneSize = config['Options'].getint('speedLimitZoneSize')
         self.useEndLimits = config['Options'].getboolean('useEndLimits')
         self.gpio = config['Setup'].getint('slideGpio')
         
         self.encoder = encoder.Encoder(pi, configFile)
 
-        self.pi.set_PWM_frequency(self.slideGpio, 50)
-        self.pi.set_PWM_range(self.slideGpio, 10000)
-        self.pi.set_PWM_dutycycle(self.slideGpio, 750)
+        self.pi.set_PWM_frequency(self.gpio, 50)
+        self.pi.set_PWM_range(self.gpio, 10000)
+        self.pi.set_PWM_dutycycle(self.gpio, 750)
 
         self.limit1 = None
-        slef.limit2 = None
+        self.limit2 = None
         self.upperLimit = None
         self.lowerLimit = None
 
@@ -58,7 +58,7 @@ class MotorController():
         Sets the target speed of the motor, then calls update() to update
         the actual speed according to end limits and acceleration limits
         '''
-        self.targetSpeed = targetSpeed
+        self.targetSpeed = targetSpeed * self.direction
         self.update()
 
 
@@ -111,7 +111,7 @@ class MotorController():
         '''
         dutycycle = min(9500, max(9000, 9250 + (speed if speed!=None else self.speed)/2))
         #print "Setting slide dutycycle to " + str(dutycycle)
-        self.pi.set_PWM_dutycycle(self.slideGpio, dutycycle)
+        self.pi.set_PWM_dutycycle(self.gpio, dutycycle)
 
 
     def softStop(self):
@@ -147,10 +147,10 @@ class MotorController():
 
         if self.limit1 == None:
             self.limit1 = self.encoderCount
-            print("limit1 set to: ", limit1)
+            print("limit1 set to: ", self.limit1)
         else:
             self.limit2 = self.encoderCount
-            print("limit2 set to: ", limit2)
+            print("limit2 set to: ", self.limit2)
             self.upperLimit = max(self.limit1, self.limit2)
             self.lowerLimit = min(self.limit1, self.limit2)
             self.limit1 = 0
@@ -163,7 +163,7 @@ class MotorController():
 
     @property
     def limitsSet(self):
-        if upperLimit != None and lowerLimit != None:
+        if (self.upperLimit != None and self.lowerLimit != None) or not self.useEndLimits:
             return True
         else:
             return False

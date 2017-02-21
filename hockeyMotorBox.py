@@ -11,14 +11,24 @@ import pigpio
 import motorController
 import servoController
 import joyStick
+import subprocess
+import shlex
+import signal
 
 def cleanup():
+    motorController.softStop()
     pi.stop()
-    os.system("shutdown -h now")
+    #os.system("shutdown -h now")
+    xboxdrv.send_signal(signal.SIGINT)
 
 
 configFile = "config.ini"
 
+# Start xboxdrv
+xboxdrv = subprocess.Popen(shlex.split("sudo xboxdrv -c /home/pi/uwh-motorbox/xboxdrvconfig.ini"))
+print("xboxdrv started")
+
+#Connect to pigpiod
 pi = pigpio.pi()
 retryCount = 0
 while not pi.connected and retryCount < 5000:
@@ -33,6 +43,7 @@ JS = joyStick.JoyStick()
 motorController = motorController.MotorController(pi, configFile)
 servoController = servoController.ServoController(pi, configFile)
 
+print("Entering Main Loop in slide limit setup mode")
 mode = "SlideLimitSetup"
 
 while True:
@@ -54,19 +65,22 @@ while True:
             JS.xBtn = False
 
         if motorController.limitsSet:
-            if !servoController.limitsSet:
+            if not servoController.limitsSet:
+                print("Entering servo limit setup mode")
                 mode = "ServoLimitSetup"
             else:
+                print("Entering Running Mode")
                 mode = "Running"
 
     elif mode == "ServoLimitSetup":
-        servoController.move(JS.xAxis, JS.yAxis, ignoreLimits = True)
+        servoController.move(JS.panAxis, JS.tiltAxis, ignoreLimits = True)
 
         if JS.yBtn:
             servoController.setLimit()
             JS.yBtn = False
 
         if servoController.limitsSet:
+            print("Entering Running Mode from servo limit setup mode")
             mode = "Running"
 
     else:
@@ -81,4 +95,4 @@ while True:
             JS.bBtn = False
 
         motorController.setSpeed(JS.slideAxis)
-        servoController.move(JS.xAxis, JS.yAxis)
+        servoController.move(JS.panAxis, JS.tiltAxis)
