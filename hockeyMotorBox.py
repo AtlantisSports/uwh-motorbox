@@ -12,9 +12,22 @@ import motorController
 import servoController
 import joyStick
 
+def cleanup():
+    pi.stop()
+    os.system("shutdown -h now")
+
+
 configFile = "config.ini"
 
 pi = pigpio.pi()
+retryCount = 0
+while not pi.connected and retryCount < 5000:
+    sleep(0.001)
+    pi = pigpio.pi()
+    retryCount += 1
+if retryCount >= 5000:
+    print("Could not connect to pigpiod. Exiting")
+    cleanup()
 
 JS = joyStick.JoyStick()
 motorController = motorController.MotorController(pi, configFile)
@@ -26,8 +39,7 @@ while True:
     JS.update()
 
     if JS.startBtn and JS.backBtn: #  This is the signal to quit
-        pi.stop()
-        os.system("shtudown -h now")
+        cleanup()
     
     if mode == "SlideLimitSetup":
         motorController.setSpeed(JS.slideAxis)
