@@ -18,11 +18,15 @@ import signal
 def cleanup():
     motorController.softStop()
     pi.stop()
-    #os.system("shutdown -h now")
     xboxdrv.send_signal(signal.SIGINT)
+    os.system("shutdown -h now")
 
 
 configFile = "config.ini"
+
+config = configparser.ConfigParser()
+config.read(configFile)
+useEndLimits = config['Options'].getboolean('useEndLimits')
 
 # Start xboxdrv
 xboxdrv = subprocess.Popen(shlex.split("sudo xboxdrv -c /home/pi/uwh-motorbox/xboxdrvconfig.ini"))
@@ -44,7 +48,7 @@ motorController = motorController.MotorController(pi, configFile)
 servoController = servoController.ServoController(pi, configFile)
 
 print("Entering Main Loop in slide limit setup mode")
-mode = "SlideLimitSetup"
+mode = "SlideLimitSetup" if useEndLimits else "Running"
 
 while True:
     JS.update()
@@ -91,6 +95,7 @@ while True:
 
         elif JS.startBtn and JS.bBtn:
             mode = "ServoLimitSetup"
+            servoController.limitsSet = False
             JS.startBtn = False
             JS.bBtn = False
 

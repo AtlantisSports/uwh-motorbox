@@ -1,5 +1,6 @@
 .AppleDouble
 .vscode
+log.txt
 
 # Below this line is cpoied from sparkfun Eagle Libraries
 
@@ -7,7 +8,6 @@
 *.orig
 SyncToy*
 SFE_Testing_Eagle_Library
-
 
 
 

@@ -33,8 +33,9 @@ class JoyStick():
 
         if loopCount >= 500:
             print("ERROR: Could not connect to Joystick")
-
-        self.JS.grab()
+        else:
+            sleep(1)
+            self.JS.grab()
 
         self.backBtn = False
         self.startBtn = False
