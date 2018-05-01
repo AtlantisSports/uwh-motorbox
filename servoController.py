@@ -25,16 +25,21 @@ class ServoController():
                    configFile: the .ini file to read config from
         '''
         
-        self.pi = pi
+        if not pi and not configFile:
+            self.useLocalPWM = False
 
-        config = configparser.ConfigParser()
-        config.read(configFile)
-        
-        self.panGpio = config['Setup'].getint('panServoGpio')
-        self.tiltGpio = config['Setup'].getint('tiltServoGpio')
+        else:
+            self.useLocalPWM = True
+            self.pi = pi
 
-        self.pi.hardware_PWM(self.panGpio, 50, 75000)
-        self.pi.hardware_PWM(self.tiltGpio, 50, 75000)
+            config = configparser.ConfigParser()
+            config.read(configFile)
+            
+            self.panGpio = config['Setup'].getint('panServoGpio')
+            self.tiltGpio = config['Setup'].getint('tiltServoGpio')
+
+            self.pi.hardware_PWM(self.panGpio, 50, 75000)
+            self.pi.hardware_PWM(self.tiltGpio, 50, 75000)
         
         # Read servo limit info from file
         try:
@@ -77,11 +82,11 @@ class ServoController():
         if self.limitsSet and not ignoreLimits:
             self.applyLimits
      
-        if self.oldPan != self.pan:
+        if self.useLocalPWM and self.oldPan != self.pan:
             self.setPan()
             self.oldPan = self.pan
 
-        if self.oldTilt != self.tilt:
+        if self.useLocalPWM and self.oldTilt != self.tilt:
             self.setTilt()
             self.oldTilt = self.tilt
 
