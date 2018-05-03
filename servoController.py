@@ -66,8 +66,9 @@ class ServoController():
         self.tilt = 1500.
         self.oldPan = self.pan
         self.oldTilt = self.tilt
-        self.setPan()
-        self.setTilt()
+        if self.useLocalPWM:
+            self.setPan()
+            self.setTilt()
 
 
     def move(self, panChange, tiltChange, ignoreLimits = False):

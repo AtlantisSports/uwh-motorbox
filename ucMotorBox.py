@@ -15,12 +15,13 @@ import joyStick
 import subprocess
 import shlex
 import signal
+import serial
+import array
+from time import sleep, time
 
 def cleanup():
-    motorController.softStop()
-    pi.stop()
     xboxdrv.send_signal(signal.SIGINT)
-    os.system("shutdown -h now")
+    exit()
 
 
 configFile = "config.ini"
@@ -29,24 +30,26 @@ configFile = "config.ini"
 xboxdrv = subprocess.Popen(shlex.split("sudo xboxdrv -c /home/pi/uwh-motorbox/xboxdrvconfig.ini"))
 print("xboxdrv started")
 
-#Connect to pigpiod
-pi = pigpio.pi()
-retryCount = 0
-while not pi.connected and retryCount < 5000:
-    sleep(0.001)
-    pi = pigpio.pi()
-    retryCount += 1
-if retryCount >= 5000:
-    print("Could not connect to pigpiod. Exiting")
-    cleanup()
-
 JS = joyStick.JoyStick()
 servoController = servoController.ServoController(None, None)
 
 print("Entering Main Loop in running mode")
 mode = "Running"
 
-serial = pi.serial_open('/dev/ttyAMA0', 9600)
+ser = serial.Serial(
+            port='/dev/ttyAMA0',
+            baudrate = 115200,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize=serial.EIGHTBITS,
+            timeout=1)
+
+lastSlideSendTime = time()
+sentPan = False
+sentTilt = False
+oldPan = ''
+oldTilt = ''
+oldSlide = ''
 
 while True:
     JS.update()
@@ -73,34 +76,62 @@ while True:
             JS.bBtn = False
 
         if JS.backBtn and JS.xBtn:
-            pi.serial_write(serial, 'L')
+            #faultTolerantSerial('L')
+            ser.write(array.array('B', [ord('L')]).tostring())
             JS.backBtn = False
             JS.xBtn = False
 
         if JS.backBtn and JS.yBtn:
-            pi.serial_write(serial, 'H')
+            #faultTolerantSerial('H')
+            ser.write(array.array('B', [ord('H')]).tostring())
             JS.backBtn = False
             JS.yBtn = False
 
         if JS.backBtn and JS.bBtn:
-            pi.serial_write(serial, 'R')
+            #faultTolerantSerial('R')
+            ser.write(array.array('B', [ord('R')]).tostring())
             JS.backBtn = False
             JS.bBtn = False
 
         if JS.xBtn:
-            pi.serial_write(serial, 'l')
+            #faultTolerantSerial('l')
+            ser.write(array.array('B', [ord('l')]).tostring())
             JS.xBtn = False
 
         if JS.yBtn:
-            pi.serial_write(serial, 'h')
+            #faultTolerantSerial('h')
+            ser.write(array.array('B', [ord('h')]).tostring())
             JS.yBtn = False
 
         if JS.bBtn:
-            pi.serial_write(serial, 'r')
+            #faultTolerantSerial('r')
+            ser.write(array.array('B', [ord('r')]).tostring())
             JS.bBtn = False
 
         servoController.move(JS.panAxis, JS.tiltAxis)
 
-        pi.serial_write(serial, ['p', int(servoController.pan * 0.0128) - 128,
-                                 't', int(servoController.tilt * 0.0128) - 128,
-                                 's', int(JS.slideAxis/2)])
+        if ((time() - lastSlideSendTime) > 0.01 and not sentPan):
+            toSendPan = array.array('B', [ord('p'), min(255, max(0, int(servoController.pan * 0.0128)))]).tostring()
+            if toSendPan != oldPan:
+                ser.write(toSendPan)
+                oldPan = toSendPan
+            sentPan = True
+
+        if ((time() - lastSlideSendTime) > 0.02 and not sentTilt):
+            toSendTilt = array.array('B', [ord('t'), min(255, max(0, int(servoController.tilt * 0.0128)))]).tostring()
+            if toSendTilt != oldTilt:
+                ser.write(toSendTilt)
+                oldTilt = toSendTilt
+            sentTilt = True
+
+        if ((time() - lastSlideSendTime) > 0.03):
+            toSendSlide = array.array('B', [ord('s'), min(255, max(0, int(JS.slideAxis/2 + 128)))]).tostring()
+            if toSendSlide != oldSlide:
+                ser.write(toSendSlide)
+                oldSlide = toSendSlide
+            #print('p: {}   t: {}   s: {}'.format(toSendPan, toSendTilt, toSendSlide))
+            lastSlideSendTime = time()
+            sentPan = False
+            sentTilt = False
+
+        sleep(0.0005)
