@@ -9,7 +9,6 @@ microcontroller
 
 import os
 import pigpio
-import motorController
 import servoController
 import joyStick
 import subprocess
